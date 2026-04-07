@@ -19,44 +19,46 @@ Notifications.setNotificationHandler({
 // ===================== ENREGISTRER LE PUSH TOKEN =====================
 const enregistrerPushToken = async (userJwtToken) => {
   try {
-    // Vérifier / demander la permission
-    const { status: existingStatus } = await Notifications.getPermissionsAsync();
-    let finalStatus = existingStatus;
+    console.log('=== PUSH TOKEN DEBUG ===');
+    console.log('JWT reçu ?', !!userJwtToken);
 
-    if (existingStatus !== 'granted') {
-      const { status } = await Notifications.requestPermissionsAsync();
-      finalStatus = status;
+    const { status } = await Notifications.getPermissionsAsync();
+    console.log('Permission actuelle:', status);
+
+    let finalStatus = status;
+    if (status !== 'granted') {
+      const { status: newStatus } = await Notifications.requestPermissionsAsync();
+      finalStatus = newStatus;
     }
+    console.log('Permission finale:', finalStatus);
 
     if (finalStatus !== 'granted') {
-      console.log('Permission notifications refusée.');
+      console.log('STOP — permission refusée');
       return null;
     }
 
-    // Récupérer le token Expo
-    // Sur Expo Go pas besoin de projectId
-    const tokenData = await Notifications.getExpoPushTokenAsync();
-    const pushToken = tokenData.data;
+    const tokenData = await Notifications.getExpoPushTokenAsync({
+      projectId: Constants.expoConfig?.extra?.eas?.projectId,
+    });
+    console.log('Token obtenu:', tokenData?.data);
 
-    console.log('Push token obtenu:', pushToken.slice(0, 40) + '...');
-
-    // Envoyer au backend
-    await fetch(ENDPOINTS.pushToken, {
+    const response = await fetch(ENDPOINTS.pushToken, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         Authorization: `Bearer ${userJwtToken}`,
       },
-      body: JSON.stringify({ push_token: pushToken }),
+      body: JSON.stringify({ push_token: tokenData.data }),
     });
 
-    return pushToken;
+    const result = await response.json();
+    console.log('Réponse backend:', JSON.stringify(result));
+
   } catch (err) {
-    // Ne jamais faire crasher l'app si le push token échoue
-    console.log('Push token error (non bloquant):', err.message);
-    return null;
+    console.log('ERREUR push token:', err.message);
   }
 };
+
 
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
