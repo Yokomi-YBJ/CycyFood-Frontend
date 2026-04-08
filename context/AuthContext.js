@@ -2,12 +2,13 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import * as SecureStore from 'expo-secure-store';
 import * as Notifications from 'expo-notifications';
-import { Platform } from 'react-native';
 import { ENDPOINTS } from '../constants/api';
 
 const AuthContext = createContext(null);
 
-// Configuration globale des notifications (à appeler une seule fois)
+// ← Plus d'import Constants — projectId hardcodé directement
+const EXPO_PROJECT_ID = 'c46f6b6d-56ce-410d-ade8-84c2413db122';
+
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
     shouldShowAlert: true,
@@ -19,53 +20,74 @@ Notifications.setNotificationHandler({
 // ===================== ENREGISTRER LE PUSH TOKEN =====================
 const enregistrerPushToken = async (userJwtToken) => {
   try {
-    console.log('=== PUSH TOKEN DEBUG ===');
-    console.log('JWT reçu ?', !!userJwtToken);
+    console.log('[NOTIF] Démarrage enregistrement push token...');
+    console.log('[NOTIF] JWT présent ?', !!userJwtToken);
+    console.log('[NOTIF] ProjectId:', EXPO_PROJECT_ID);
 
-    const { status } = await Notifications.getPermissionsAsync();
-    console.log('Permission actuelle:', status);
+    // Vérifier permission
+    const { status: existingStatus } = await Notifications.getPermissionsAsync();
+    console.log('[NOTIF] Permission actuelle:', existingStatus);
 
-    let finalStatus = status;
-    if (status !== 'granted') {
-      const { status: newStatus } = await Notifications.requestPermissionsAsync();
-      finalStatus = newStatus;
+    let finalStatus = existingStatus;
+    if (existingStatus !== 'granted') {
+      const { status } = await Notifications.requestPermissionsAsync();
+      finalStatus = status;
+      console.log('[NOTIF] Permission après demande:', finalStatus);
     }
-    console.log('Permission finale:', finalStatus);
 
     if (finalStatus !== 'granted') {
-      console.log('STOP — permission refusée');
+      console.log('[NOTIF] BLOQUÉ — permission refusée');
       return null;
     }
 
+    // Obtenir le token
+    console.log('[NOTIF] Appel getExpoPushTokenAsync...');
     const tokenData = await Notifications.getExpoPushTokenAsync({
-      projectId: Constants.expoConfig?.extra?.eas?.projectId,
+      projectId: EXPO_PROJECT_ID,
     });
-    console.log('Token obtenu:', tokenData?.data);
 
+    const pushToken = tokenData.data;
+    console.log('[NOTIF] Token obtenu :', pushToken);
+
+    if (!pushToken) {
+      console.log('[NOTIF] ERREUR — token vide ou null');
+      return null;
+    }
+
+    // Envoyer au backend
+    console.log('[NOTIF] Envoi token au backend...');
     const response = await fetch(ENDPOINTS.pushToken, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         Authorization: `Bearer ${userJwtToken}`,
       },
-      body: JSON.stringify({ push_token: tokenData.data }),
+      body: JSON.stringify({ push_token: pushToken }),
     });
 
     const result = await response.json();
-    console.log('Réponse backend:', JSON.stringify(result));
+    console.log('[NOTIF] Réponse backend:', JSON.stringify(result));
 
+    if (result.status === 'success') {
+      console.log('[NOTIF] ✅ Token enregistré avec succès en base !');
+    } else {
+      console.log('[NOTIF] ❌ Échec enregistrement:', result.message);
+    }
+
+    return pushToken;
   } catch (err) {
-    console.log('ERREUR push token:', err.message);
+    console.log('[NOTIF] ❌ ERREUR:', err.message);
+    console.log('[NOTIF] Stack:', err.stack);
+    return null;
   }
 };
-
 
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
   const [token, setToken] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  // Charger la session au démarrage
+  // Charger la session sauvegardée au démarrage
   useEffect(() => {
     const loadSession = async () => {
       try {
@@ -74,12 +96,13 @@ export function AuthProvider({ children }) {
         if (savedToken && savedUser) {
           setToken(savedToken);
           setUser(JSON.parse(savedUser));
-          // Ré-enregistrer le push token à chaque démarrage
-          // (le token peut changer après réinstallation)
-          enregistrerPushToken(savedToken);
+          // Délai court pour laisser l'app s'initialiser complètement
+          setTimeout(() => {
+            enregistrerPushToken(savedToken);
+          }, 2000);
         }
       } catch (e) {
-        console.log('Erreur chargement session:', e);
+        console.log('[AUTH] Erreur chargement session:', e);
       } finally {
         setLoading(false);
       }
@@ -87,23 +110,20 @@ export function AuthProvider({ children }) {
     loadSession();
   }, []);
 
-  // Écouter les notifications reçues pendant l'utilisation de l'app
+  // Écouter les notifications reçues en foreground
   useEffect(() => {
-    // Notification reçue en foreground
-    const subscription = Notifications.addNotificationReceivedListener(notification => {
-      console.log('Notification reçue (foreground):', notification.request.content.title);
+    const sub1 = Notifications.addNotificationReceivedListener(notification => {
+      console.log('[NOTIF] Reçue (foreground):', notification.request.content.title);
     });
 
-    // Notification touchée (tap) → on pourrait naviguer vers les commandes
-    const responseSubscription = Notifications.addNotificationResponseReceivedListener(response => {
+    const sub2 = Notifications.addNotificationResponseReceivedListener(response => {
       const data = response.notification.request.content.data;
-      console.log('Notification touchée, données:', data);
-      // Navigation vers commandes possible ici avec router.push('/(tabs)/commandes')
+      console.log('[NOTIF] Touchée par l\'utilisateur:', data);
     });
 
     return () => {
-      subscription.remove();
-      responseSubscription.remove();
+      sub1.remove();
+      sub2.remove();
     };
   }, []);
 
@@ -119,8 +139,10 @@ export function AuthProvider({ children }) {
       await SecureStore.setItemAsync('user', JSON.stringify(data.user));
       setToken(data.token);
       setUser(data.user);
-      // Enregistrer le push token après connexion
-      enregistrerPushToken(data.token);
+      // Délai pour laisser la navigation se stabiliser avant d'enregistrer
+      setTimeout(() => {
+        enregistrerPushToken(data.token);
+      }, 1500);
     }
     return data;
   };
@@ -137,8 +159,9 @@ export function AuthProvider({ children }) {
       await SecureStore.setItemAsync('user', JSON.stringify(data.user));
       setToken(data.token);
       setUser(data.user);
-      // Enregistrer le push token après inscription
-      enregistrerPushToken(data.token);
+      setTimeout(() => {
+        enregistrerPushToken(data.token);
+      }, 1500);
     }
     return data;
   };

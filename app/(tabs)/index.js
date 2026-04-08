@@ -34,8 +34,8 @@ export default function HomeScreen() {
       setRefreshing(false);
     }
   };
-
-  useEffect(() => { fetchProduits(); }, []);
+   
+  useEffect(() => { fetchProduits(); }, [],);
 
   const onRefresh = useCallback(() => {
     setRefreshing(true);
