@@ -1,6 +1,6 @@
 // constants/api.js
 // ⚠️ Remplace 192.168.X.X par l'IP de ton PC (ipconfig dans CMD)
-export const API_BASE_URL = 'http://192.168.0.117:3000/api';
+export const API_BASE_URL = 'http://10.120.154.88:3000/api';
 
 export const ENDPOINTS = {
   // Auth
