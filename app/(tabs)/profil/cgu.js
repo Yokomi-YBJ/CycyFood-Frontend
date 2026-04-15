@@ -110,7 +110,8 @@ export default function CGUScreen() {
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
-      <StatusBar barStyle="dark-content" backgroundColor="#fff" />
+    <View style={styles.containt}>
+      <StatusBar barStyle="light-content" backgroundColor="#FF6B35" />
 
       <View style={styles.header}>
         <TouchableOpacity style={styles.backBtn} onPress={() => router.back()}>
@@ -160,12 +161,14 @@ export default function CGUScreen() {
 
         <View style={{ height: 40 }} />
       </ScrollView>
+    </View>
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#f4f4f8' },
+  container: { flex: 1, backgroundColor: '#FF6B35' },
+  containt: {flex: 1, backgroundColor: 'white'},
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingVertical: 14, backgroundColor: '#fff', borderBottomWidth: 1, borderBottomColor: '#f0f0f0' },
   backBtn: { width: 40, height: 40, borderRadius: 12, backgroundColor: '#f5f5f5', alignItems: 'center', justifyContent: 'center' },
   headerTitle: { fontSize: 17, fontWeight: '800', color: '#1a1a1a' },

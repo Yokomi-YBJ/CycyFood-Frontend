@@ -1,10 +1,10 @@
 // app/_layout.js
 import { useEffect } from 'react';
 import { Stack, useRouter, useSegments } from 'expo-router';
-import { StatusBar } from 'expo-status-bar';
 import { AuthProvider, useAuth } from '../context/AuthContext';
 import { CartProvider } from '../context/CartContext';
 import { ActivityIndicator, View } from 'react-native';
+import { StatusBar } from 'expo-status-bar';
 
 function RootGuard() {
   const { user, loading } = useAuth();
@@ -39,12 +39,17 @@ function RootGuard() {
   }
 
   return (
-    <Stack screenOptions={{ headerShown: false }}>
-      <Stack.Screen name="auth" />
-      <Stack.Screen name="(tabs)" />
-      <Stack.Screen name="admin" />
-      <Stack.Screen name="profil" />
-    </Stack>
+    <>
+      <StatusBar style="light" backgroundColor="#FF6B35" translucent={false} />
+      <Stack screenOptions={{ 
+        headerShown: false,
+      }}>
+        <Stack.Screen name="auth" />
+        <Stack.Screen name="(tabs)" />
+        <Stack.Screen name="admin" />
+        <Stack.Screen name="profil" />
+      </Stack>
+    </>
   );
 }
 
@@ -52,9 +57,9 @@ export default function RootLayout() {
   return (
     <AuthProvider>
       <CartProvider>
-        <StatusBar style="auto" />
         <RootGuard />
       </CartProvider>
     </AuthProvider>
   );
 }
+

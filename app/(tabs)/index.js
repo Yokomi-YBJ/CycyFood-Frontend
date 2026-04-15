@@ -28,7 +28,7 @@ export default function HomeScreen() {
         setProduits(data.produits);
       }
     } catch (e) {
-      Alert.alert('Erreur', 'Impossible de charger les produits.\nVérifie la connexion au serveur.');
+      Alert.alert('Problème de connexion', 'Impossible de charger les produits. Vérifiez votre connexion internet.');
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -55,12 +55,12 @@ export default function HomeScreen() {
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
-       <StatusBar barStyle="light-content" backgroundColor="#FF6B35" />
-
+      <StatusBar barStyle="light-content" backgroundColor="#FF6B35" />
       <ScrollView
         showsVerticalScrollIndicator={false}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={['#FF6B35']} />}
       >
+      <View style={styles.containt}>
         {/* ===== HEADER ===== */}
         <View style={styles.header}>
           <View>
@@ -171,7 +171,7 @@ export default function HomeScreen() {
             </View>
           </>
         )}
-
+        </View>
   
 
       </ScrollView>
@@ -182,8 +182,8 @@ export default function HomeScreen() {
 const CARD_W = (width - 48) / 2;
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#f8f8f8' },
-
+  container: { flex: 1, backgroundColor: '#FF6B35' },
+  containt: {flex: 1, backgroundColor: 'white'},
   header: {
     flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start',
     paddingHorizontal: 20, paddingTop: 16, paddingBottom: 8,

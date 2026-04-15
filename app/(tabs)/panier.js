@@ -2,7 +2,7 @@
 import React, { useState } from 'react';
 import {
   View, Text, StyleSheet, FlatList, TouchableOpacity,
-  Image, Alert, ActivityIndicator,
+  Image, Alert, ActivityIndicator, StatusBar,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -50,12 +50,12 @@ export default function PanierScreen() {
               const data = await res.json();
               if (data.status === 'success') {
                 viderPanier();
-                Alert.alert('✅ Commande envoyée !', `Votre commande #${data.commande_id} a bien été enregistrée.`);
+                Alert.alert('✅ Commande envoyée !', `Votre commande  a bien été enregistrée.`);
               } else {
                 Alert.alert('Erreur', data.message);
               }
             } catch (e) {
-              Alert.alert('Erreur réseau', 'Impossible d\'envoyer la commande.');
+              Alert.alert('Problème de connexion', 'Impossible d\'envoyer votre commande. Vérifiez votre connexion internet.');
             } finally {
               setLoading(false);
             }
@@ -95,8 +95,10 @@ export default function PanierScreen() {
   );
 
   return (
-    <View style={[styles.container, { paddingTop: insets.top }]}>
-
+    <>
+      <StatusBar barStyle="light-content" backgroundColor="#FF6B35" />
+      <View style={[styles.container, { paddingTop: insets.top }]}>
+      <View style={styles.containt}>
       {/* Header */}
       <View style={styles.header}>
         <Text style={styles.headerTitle}>Mon Panier</Text>
@@ -156,12 +158,15 @@ export default function PanierScreen() {
           </View>
         </>
       )}
+      </View>
     </View>
+    </>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#f8f8f8' },
+  container: { flex: 1, backgroundColor: '#FF6B35' },
+  containt: {flex: 1, backgroundColor: 'white'},
   header: {
     flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
     paddingHorizontal: 20, paddingTop: 16, paddingBottom: 12,

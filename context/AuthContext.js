@@ -21,8 +21,7 @@ Notifications.setNotificationHandler({
 const enregistrerPushToken = async (userJwtToken) => {
   try {
     console.log('[NOTIF] Démarrage enregistrement push token...');
-    console.log('[NOTIF] JWT présent ?', !!userJwtToken);
-    console.log('[NOTIF] ProjectId:', EXPO_PROJECT_ID);
+
 
     // Vérifier permission
     const { status: existingStatus } = await Notifications.getPermissionsAsync();
@@ -47,7 +46,6 @@ const enregistrerPushToken = async (userJwtToken) => {
     });
 
     const pushToken = tokenData.data;
-    console.log('[NOTIF] Token obtenu :', pushToken);
 
     if (!pushToken) {
       console.log('[NOTIF] ERREUR — token vide ou null');

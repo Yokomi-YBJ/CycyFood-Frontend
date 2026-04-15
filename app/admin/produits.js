@@ -37,7 +37,7 @@ export default function AdminProduits() {
       const data = await res.json();
       if (data.status === 'success') setProduits(data.produits);
     } catch (e) {
-      Alert.alert('Erreur', 'Impossible de charger les produits.');
+      Alert.alert('Problème de connexion', 'Impossible de charger les produits.');
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -134,7 +134,7 @@ export default function AdminProduits() {
         Alert.alert('Erreur', data.message);
       }
     } catch (e) {
-      Alert.alert('Erreur réseau', 'Vérifiez la connexion au serveur.');
+      Alert.alert('Problème de connexion', 'Vérifiez la connexion au serveur et réessayez.');
     } finally {
       setSaving(false);
     }
@@ -210,8 +210,8 @@ export default function AdminProduits() {
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
-      <StatusBar barStyle="dark-content" backgroundColor="#f4f4f8" />
-
+      <StatusBar barStyle="light-content" backgroundColor="#FF6B35" />
+    <View style={styles.containt}>
       {/* Modal ajouter/modifier */}
       <Modal visible={modalVisible} animationType="slide" transparent>
         <View style={styles.modalOverlay}>
@@ -336,12 +336,14 @@ export default function AdminProduits() {
             }
           />
       }
+      </View>
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#f4f4f8' },
+  container: { flex: 1, backgroundColor: '#FF6B35' },
+  containt: {flex: 1, backgroundColor: 'white'},
   header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 20, paddingVertical: 14 },
   headerTitle: { fontSize: 24, fontWeight: '800', color: '#1a1a1a' },
   addBtn: { width: 44, height: 44, borderRadius: 22, backgroundColor: '#FF6B35', alignItems: 'center', justifyContent: 'center', shadowColor: '#FF6B35', shadowOffset: { width: 0, height: 3 }, shadowOpacity: 0.3, shadowRadius: 8, elevation: 4 },

@@ -3,13 +3,16 @@ import React, { useState, useRef } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity, StyleSheet,
   KeyboardAvoidingView, Platform, ScrollView, ActivityIndicator,
-  Alert, Image, StatusBar, Modal, Animated, Dimensions,
+  Alert, Image, StatusBar, Modal, Animated, Dimensions, Linking,
 } from 'react-native';
 import { useRouter, Link } from 'expo-router';
 import { useAuth } from '../../context/AuthContext';
 import { Ionicons } from '@expo/vector-icons';
 
 const { width } = Dimensions.get('window');
+
+// l'URL de ta politique de confidentialité en ligne
+const URL_POLITIQUE = 'https://cycy-food-politique-de-confidential.vercel.app/';
 
 const QUARTIERS = [
   { label: 'Baladji', value: 'Baladji', arr: '1' },
@@ -66,8 +69,11 @@ export default function SignupScreen() {
   const [loading, setLoading] = useState(false);
   const [modalVisible, setModalVisible] = useState(false);
   const [recherche, setRecherche] = useState('');
+  const [acceptePolitique, setAcceptePolitique] = useState(false);
+  const [checkboxShake, setCheckboxShake] = useState(false);
 
   const slideAnim = useRef(new Animated.Value(0)).current;
+  const shakeAnim = useRef(new Animated.Value(0)).current;
 
   const animer = (direction) => {
     Animated.sequence([
@@ -81,6 +87,17 @@ export default function SignupScreen() {
         duration: 200,
         useNativeDriver: true,
       }),
+    ]).start();
+  };
+
+  // Animation secousse pour la checkbox si non cochée
+  const animerShake = () => {
+    Animated.sequence([
+      Animated.timing(shakeAnim, { toValue: 8, duration: 60, useNativeDriver: true }),
+      Animated.timing(shakeAnim, { toValue: -8, duration: 60, useNativeDriver: true }),
+      Animated.timing(shakeAnim, { toValue: 6, duration: 60, useNativeDriver: true }),
+      Animated.timing(shakeAnim, { toValue: -6, duration: 60, useNativeDriver: true }),
+      Animated.timing(shakeAnim, { toValue: 0, duration: 60, useNativeDriver: true }),
     ]).start();
   };
 
@@ -109,6 +126,17 @@ export default function SignupScreen() {
   const handleInscription = async () => {
     if (password.length < 6) return Alert.alert('Mot de passe trop court', 'Minimum 6 caractères.');
     if (password !== copassword) return Alert.alert('Mots de passe différents', 'Les mots de passe ne correspondent pas.');
+
+    // Vérification checkbox obligatoire
+    if (!acceptePolitique) {
+      animerShake();
+      Alert.alert(
+        'Acceptation requise',
+        'Vous devez lire et accepter la politique de confidentialité pour créer votre compte.'
+      );
+      return;
+    }
+
     setLoading(true);
     try {
       const data = await inscription({ nom, prenom, adresse, telephone, password, copassword });
@@ -122,6 +150,12 @@ export default function SignupScreen() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const ouvrirPolitique = () => {
+    Linking.openURL(URL_POLITIQUE).catch(() => {
+      Alert.alert('Erreur', 'Impossible d\'ouvrir la page. Vérifiez votre connexion internet.');
+    });
   };
 
   return (
@@ -240,7 +274,7 @@ export default function SignupScreen() {
                     <Ionicons name="person-outline" size={18} color="#FF6B35" style={styles.inputIcon} />
                     <TextInput
                       style={styles.input}
-                      placeholder="Votre nom"
+                      placeholder="Votre nom de famille"
                       placeholderTextColor="#bbb"
                       value={nom}
                       onChangeText={setNom}
@@ -299,7 +333,7 @@ export default function SignupScreen() {
               </>
             )}
 
-            {/* ÉTAPE 3 - Mots de passe */}
+            {/* ÉTAPE 3 - Mots de passe + Checkbox politique */}
             {etape === 2 && (
               <>
                 <View style={styles.inputGroup}>
@@ -320,6 +354,7 @@ export default function SignupScreen() {
                     </TouchableOpacity>
                   </View>
                 </View>
+
                 <View style={styles.inputGroup}>
                   <Text style={styles.label}>Confirmer le mot de passe</Text>
                   <View style={styles.inputWrapper}>
@@ -338,6 +373,43 @@ export default function SignupScreen() {
                     </TouchableOpacity>
                   </View>
                 </View>
+
+                {/* ── CHECKBOX POLITIQUE ── */}
+                <Animated.View style={[
+                  styles.checkboxContainer,
+                  !acceptePolitique && styles.checkboxContainerError,
+                  { transform: [{ translateX: shakeAnim }] }
+                ]}>
+                  <TouchableOpacity
+                    style={styles.checkboxRow}
+                    onPress={() => setAcceptePolitique(!acceptePolitique)}
+                    activeOpacity={0.7}
+                  >
+                    <View style={[styles.checkbox, acceptePolitique && styles.checkboxChecked]}>
+                      {acceptePolitique && (
+                        <Ionicons name="checkmark" size={13} color="#fff" />
+                      )}
+                    </View>
+                    <View style={styles.checkboxTextWrap}>
+                      <Text style={styles.checkboxText}>
+                        J'ai lu et j'accepte la{' '}
+                        <Text
+                          style={styles.checkboxLink}
+                          onPress={ouvrirPolitique}
+                        >
+                          politique de confidentialité
+                        </Text>
+                        {' '}de Cycy-Food.
+                      </Text>
+                    </View>
+                  </TouchableOpacity>
+
+                  {/* Bouton lire la politique */}
+                  <TouchableOpacity style={styles.lirePolitiqueBtn} onPress={ouvrirPolitique}>
+                    <Ionicons name="open-outline" size={13} color="#FF6B35" />
+                    <Text style={styles.lirePolitiqueBtnText}>Lire la politique</Text>
+                  </TouchableOpacity>
+                </Animated.View>
               </>
             )}
 
@@ -350,7 +422,11 @@ export default function SignupScreen() {
                 </TouchableOpacity>
               )}
               <TouchableOpacity
-                style={[styles.btnSuivant, etape === 0 && { flex: 1 }]}
+                style={[
+                  styles.btnSuivant,
+                  etape === 0 && { flex: 1 },
+                  etape === 2 && !acceptePolitique && styles.btnSuivantDisabled,
+                ]}
                 onPress={etape < 2 ? validerEtape : handleInscription}
                 disabled={loading}
               >
@@ -428,7 +504,34 @@ const styles = StyleSheet.create({
   selectText: { flex: 1, fontSize: 15, color: '#1a1a1a' },
   selectPlaceholder: { color: '#bbb' },
 
-  navRow: { flexDirection: 'row', gap: 10, marginTop: 8 },
+  // Checkbox politique
+  checkboxContainer: {
+    borderWidth: 1.5, borderColor: '#eee', borderRadius: 14,
+    padding: 14, backgroundColor: '#fafafa', marginBottom: 4,
+  },
+  checkboxContainerError: {
+    borderColor: '#FF6B3540', backgroundColor: '#FF6B3506',
+  },
+  checkboxRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 12 },
+  checkbox: {
+    width: 22, height: 22, borderRadius: 6,
+    borderWidth: 2, borderColor: '#ddd',
+    alignItems: 'center', justifyContent: 'center',
+    marginTop: 1, flexShrink: 0,
+  },
+  checkboxChecked: { backgroundColor: '#FF6B35', borderColor: '#FF6B35' },
+  checkboxTextWrap: { flex: 1 },
+  checkboxText: { fontSize: 13, color: '#555', lineHeight: 20 },
+  checkboxLink: { color: '#FF6B35', fontWeight: '700', textDecorationLine: 'underline' },
+  lirePolitiqueBtn: {
+    flexDirection: 'row', alignItems: 'center', gap: 5,
+    marginTop: 10, alignSelf: 'flex-start',
+    paddingHorizontal: 10, paddingVertical: 5,
+    backgroundColor: '#FF6B3510', borderRadius: 20,
+  },
+  lirePolitiqueBtnText: { fontSize: 12, color: '#FF6B35', fontWeight: '700' },
+
+  navRow: { flexDirection: 'row', gap: 10, marginTop: 16 },
   btnRetour: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6,
     borderWidth: 1.5, borderColor: '#FF6B35', borderRadius: 14,
@@ -441,6 +544,7 @@ const styles = StyleSheet.create({
     shadowColor: '#FF6B35', shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.35, shadowRadius: 10, elevation: 6,
   },
+  btnSuivantDisabled: { backgroundColor: '#ccc', shadowOpacity: 0, elevation: 0 },
   btnSuivantText: { color: '#fff', fontSize: 16, fontWeight: '700' },
 
   linkRow: { flexDirection: 'row', justifyContent: 'center', marginTop: 18 },

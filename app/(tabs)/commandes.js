@@ -32,7 +32,7 @@ export default function CommandesScreen() {
       if (data.status === 'success') setCommandes(data.commandes);
       else Alert.alert('Erreur', data.message);
     } catch (e) {
-      Alert.alert('Erreur réseau', 'Impossible de charger vos commandes.');
+      Alert.alert('Problème de connexion', 'Impossible de charger vos commandes. Vérifiez votre connexion internet.');
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -61,7 +61,7 @@ export default function CommandesScreen() {
         {/* Header carte */}
         <View style={styles.cardHeader}>
           <View style={styles.cmdIdWrap}>
-            <Text style={styles.cmdId}>#{item.id_commande}</Text>
+            <Text style={styles.cmdId}></Text>
           </View>
           <View style={[styles.statutBadge, { backgroundColor: cfg.bg }]}>
             <Ionicons name={cfg.icon} size={13} color={cfg.color} />
@@ -114,8 +114,8 @@ export default function CommandesScreen() {
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
-      <StatusBar barStyle="dark-content" backgroundColor="#f8f8f8" />
-
+      <StatusBar barStyle="light-content" backgroundColor="#FF6B35" />
+      <View style={styles.containt}>
       <View style={styles.header}>
         <Text style={styles.headerTitle}>Mes Commandes</Text>
         <TouchableOpacity onPress={() => { setLoading(true); fetchCommandes(); }} style={styles.refreshBtn}>
@@ -156,12 +156,14 @@ export default function CommandesScreen() {
           }
         />
       )}
+      </View>
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#f8f8f8' },
+  container: { flex: 1, backgroundColor: '#FF6B35' },
+  containt: {flex: 1, backgroundColor: 'white'},
   header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 20, paddingTop: 16, paddingBottom: 12 },
   headerTitle: { fontSize: 26, fontWeight: '800', color: '#1a1a1a' },
   refreshBtn: { padding: 8 },
@@ -177,8 +179,6 @@ const styles = StyleSheet.create({
 
   card: { backgroundColor: '#fff', borderRadius: 18, marginBottom: 14, shadowColor: '#000', shadowOffset: { width: 0, height: 3 }, shadowOpacity: 0.07, shadowRadius: 10, elevation: 3, overflow: 'hidden' },
   cardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 16, paddingTop: 14, paddingBottom: 10 },
-  cmdIdWrap: { backgroundColor: '#FF6B3512', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 8 },
-  cmdId: { color: '#FF6B35', fontSize: 13, fontWeight: '800' },
   statutBadge: { flexDirection: 'row', alignItems: 'center', gap: 5, borderRadius: 20, paddingHorizontal: 10, paddingVertical: 4 },
   statutText: { fontSize: 12, fontWeight: '700' },
 

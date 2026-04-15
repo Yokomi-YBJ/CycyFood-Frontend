@@ -24,7 +24,7 @@ export default function AdminClients() {
       const data = await res.json();
       if (data.status === 'success') setClients(data.clients);
     } catch (e) {
-      Alert.alert('Erreur', 'Impossible de charger les clients.');
+      Alert.alert('Problème de connexion', 'Impossible de charger la liste des clients.');
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -75,7 +75,7 @@ export default function AdminClients() {
           <View style={styles.clientStats}>
             <View style={styles.statPill}>
               <Ionicons name="receipt-outline" size={10} color="#2196F3" />
-              <Text style={[styles.statPillText, { color: '#2196F3' }]}>{item.nb_commandes} cmd</Text>
+              <Text style={[styles.statPillText, { color: '#2196F3' }]}>{item.nb_commandes} commande(s)</Text>
             </View>
             <View style={[styles.statPill, { backgroundColor: '#FF6B3510' }]}>
               <Ionicons name="cash-outline" size={10} color="#FF6B35" />
@@ -98,8 +98,8 @@ export default function AdminClients() {
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
-      <StatusBar barStyle="dark-content" backgroundColor="#f4f4f8" />
-
+      <StatusBar barStyle="light-content" backgroundColor="#FF6B35" />
+    <View style={styles.containt}>
       <View style={styles.header}>
         <Text style={styles.headerTitle}>Clients</Text>
         <Text style={styles.headerCount}>{clients.length} inscrits</Text>
@@ -139,12 +139,14 @@ export default function AdminClients() {
             }
           />
       }
+      </View>
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#f4f4f8' },
+  container: { flex: 1, backgroundColor: '#FF6B35' },
+  containt: {flex: 1, backgroundColor: 'white'},
   header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 20, paddingVertical: 14 },
   headerTitle: { fontSize: 24, fontWeight: '800', color: '#1a1a1a' },
   headerCount: { fontSize: 14, color: '#aaa', fontWeight: '600' },

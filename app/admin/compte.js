@@ -39,7 +39,8 @@ export default function AdminCompte() {
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
-      <StatusBar barStyle="light-content" backgroundColor="#1a1a1a" />
+    <View style={styles.containt}>
+      <StatusBar barStyle="light-content" backgroundColor="#FF6B35" />
       <ScrollView showsVerticalScrollIndicator={false}>
 
         {/* Header admin */}
@@ -93,12 +94,14 @@ export default function AdminCompte() {
 
         <View style={{ height: 30 }} />
       </ScrollView>
+      </View>
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#f4f4f8' },
+  container: { flex: 1, backgroundColor: '#FF6B35' },
+  containt: {flex: 1, backgroundColor: 'white'},
   header: { alignItems: 'center', paddingVertical: 32, backgroundColor: '#1a1a1a', marginBottom: 20 },
   avatar: { width: 86, height: 86, borderRadius: 43, backgroundColor: '#FF6B3520', alignItems: 'center', justifyContent: 'center', marginBottom: 12, borderWidth: 2, borderColor: '#FF6B3540' },
   nom: { fontSize: 22, fontWeight: '800', color: '#fff', marginBottom: 8 },

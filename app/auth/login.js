@@ -36,7 +36,7 @@ export default function LoginScreen() {
         Alert.alert('Erreur', data.message);
       }
     } catch (e) {
-      Alert.alert('Erreur réseau', 'Impossible de contacter le serveur');
+      Alert.alert('Problème de connexion', 'Le serveur est inaccessible. Vérifiez votre internet et le serveur backend.');
     } finally {
       setLoading(false);
     }
@@ -44,7 +44,7 @@ export default function LoginScreen() {
 
   return (
     <>
-      <StatusBar barStyle="white-content" backgroundColor="#FF6B35" />
+      <StatusBar barStyle="light-content" backgroundColor="#FF6B35" />
       <KeyboardAvoidingView
         style={styles.container}
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}

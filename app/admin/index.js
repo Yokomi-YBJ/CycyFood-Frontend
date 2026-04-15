@@ -62,8 +62,8 @@ export default function AdminDashboard() {
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
-      <StatusBar barStyle="dark-content" backgroundColor="#f4f4f8" />
-
+      <StatusBar barStyle="light-content" backgroundColor="#FF6B35" />
+    <View style={styles.containt}>
       <View style={styles.header}>
         <View>
           <Text style={styles.headerSub}>Espace administrateur</Text>
@@ -113,7 +113,7 @@ export default function AdminDashboard() {
               <View style={styles.sectionRow}>
                 <Text style={styles.sectionTitle}>Commandes récentes</Text>
                 <TouchableOpacity onPress={() => router.push('/admin/commandes')}>
-                  <Text style={styles.voirTout}>Voir tout →</Text>
+                  <Text style={styles.voirTout}>Voir tout </Text>
                 </TouchableOpacity>
               </View>
 
@@ -131,7 +131,7 @@ export default function AdminDashboard() {
                     </View>
                     <View style={styles.cmdInfo}>
                       <Text style={styles.cmdNom}>{cmd.nom_user} {cmd.prenom_user}</Text>
-                      <Text style={styles.cmdHeure}>{cmd.heure_commande?.slice(0,5)} · #{cmd.id_commande}</Text>
+                      <Text style={styles.cmdHeure}>{cmd.heure_commande?.slice(0,5)} </Text>
                     </View>
                     <View style={styles.cmdRight}>
                       <Text style={styles.cmdPrix}>{cmd.prix_commande} Fcfa</Text>
@@ -171,14 +171,16 @@ export default function AdminDashboard() {
           </>
         ) : null}
 
-        <View style={{ height: 30 }} />
+        <View style={{ height: 80 }} />
       </ScrollView>
+      </View>
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#f4f4f8' },
+  container: { flex: 1, backgroundColor: '#FF6B35' },
+  containt: {flex: 1, backgroundColor: 'white'},
   header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 20, paddingVertical: 16 },
   headerSub: { fontSize: 12, color: '#aaa', fontWeight: '600', textTransform: 'uppercase', letterSpacing: 0.5 },
   headerTitle: { fontSize: 22, fontWeight: '800', color: '#1a1a1a', marginTop: 2 },

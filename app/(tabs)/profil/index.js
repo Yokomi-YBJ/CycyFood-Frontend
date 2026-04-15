@@ -60,6 +60,7 @@ export default function ProfilScreen() {
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
+      <View style={styles.containt}>
       <StatusBar barStyle="light-content" backgroundColor="#FF6B35" />
       <ScrollView showsVerticalScrollIndicator={false}>
 
@@ -69,9 +70,7 @@ export default function ProfilScreen() {
             <Text style={styles.avatarText}>{initiales}</Text>
           </View>
           <Text style={styles.userName}>{user?.nom_user} {user?.prenom_user}</Text>
-          <Text style={styles.userRole}>
-            {user?.role === 'admin' ? '👑 Administrateur' : '🍽️ Client Cycy-Food'}
-          </Text>
+          
           <TouchableOpacity
             style={styles.editHeaderBtn}
             onPress={() => router.push('profil/modifier')}
@@ -190,13 +189,14 @@ export default function ProfilScreen() {
 
         <View style={{ height: 32 }} />
       </ScrollView>
+      </View>
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#f4f4f8' },
-
+  container: { flex: 1, backgroundColor: '#FF6B35' },
+  containt: {flex: 1, backgroundColor: 'white'},
   profileHeader: {
     alignItems: 'center', paddingTop: 28, paddingBottom: 28,
     backgroundColor: '#FF6B35',
@@ -209,7 +209,6 @@ const styles = StyleSheet.create({
   },
   avatarText: { fontSize: 30, fontWeight: '900', color: '#fff' },
   userName: { fontSize: 22, fontWeight: '800', color: '#fff', marginBottom: 2 },
-  userRole: { fontSize: 13, color: 'rgba(255,255,255,0.8)', marginBottom: 14 },
   editHeaderBtn: {
     flexDirection: 'row', alignItems: 'center', gap: 5,
     backgroundColor: 'rgba(255,255,255,0.2)', borderRadius: 20,
