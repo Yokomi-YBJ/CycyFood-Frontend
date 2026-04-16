@@ -130,10 +130,6 @@ export default function SignupScreen() {
     // Vérification checkbox obligatoire
     if (!acceptePolitique) {
       animerShake();
-      Alert.alert(
-        'Acceptation requise',
-        'Vous devez lire et accepter la politique de confidentialité pour créer votre compte.'
-      );
       return;
     }
 
@@ -404,11 +400,7 @@ export default function SignupScreen() {
                     </View>
                   </TouchableOpacity>
 
-                  {/* Bouton lire la politique */}
-                  <TouchableOpacity style={styles.lirePolitiqueBtn} onPress={ouvrirPolitique}>
-                    <Ionicons name="open-outline" size={13} color="#FF6B35" />
-                    <Text style={styles.lirePolitiqueBtnText}>Lire la politique</Text>
-                  </TouchableOpacity>
+                  
                 </Animated.View>
               </>
             )}
@@ -459,7 +451,7 @@ export default function SignupScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#FF6B35' },
-  scroll: { flexGrow: 1, justifyContent: 'center', padding: 20, paddingVertical: 40 },
+  scroll: { flexGrow: 1, justifyContent: 'center', padding: 20, paddingVertical: 40, backgroundColor: '#FF6B35' },
 
   header: { alignItems: 'center', marginBottom: 20 },
   logoCircle: { width: 70, height: 70, borderRadius: 35, backgroundColor: '#fff', overflow: 'hidden', marginBottom: 10 },
@@ -523,13 +515,6 @@ const styles = StyleSheet.create({
   checkboxTextWrap: { flex: 1 },
   checkboxText: { fontSize: 13, color: '#555', lineHeight: 20 },
   checkboxLink: { color: '#FF6B35', fontWeight: '700', textDecorationLine: 'underline' },
-  lirePolitiqueBtn: {
-    flexDirection: 'row', alignItems: 'center', gap: 5,
-    marginTop: 10, alignSelf: 'flex-start',
-    paddingHorizontal: 10, paddingVertical: 5,
-    backgroundColor: '#FF6B3510', borderRadius: 20,
-  },
-  lirePolitiqueBtnText: { fontSize: 12, color: '#FF6B35', fontWeight: '700' },
 
   navRow: { flexDirection: 'row', gap: 10, marginTop: 16 },
   btnRetour: {

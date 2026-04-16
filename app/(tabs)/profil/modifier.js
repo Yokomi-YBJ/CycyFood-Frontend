@@ -139,7 +139,7 @@ export default function ModifierProfilScreen() {
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
-      <StatusBar style="dark" backgroundColor="#fff" />
+      <StatusBar style="light" backgroundColor="#fff" />
 
       {/* ── Modal Quartier ── */}
       <Modal visible={modalQuartier} animationType="slide" transparent>
@@ -320,7 +320,7 @@ export default function ModifierProfilScreen() {
                   }
                 </TouchableOpacity>
               </View>
-              <View style={{ height: 20 }} />
+              <View style={{ height: 50 }} />
             </ScrollView>
           </View>
         </View>

@@ -4,6 +4,16 @@ import { View, Text, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useCart } from '../../context/CartContext';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import * as Notifications from 'expo-notifications';
+
+
+Notifications.setNotificationHandler({
+  handleNotification: async () => ({
+    shouldShowAlert: true, // Force la bannière même quand l'app est ouverte
+    shouldPlaySound: true, // Joue le son
+    shouldSetBadge: false,
+  }),
+});
 
 function CartIcon({ color, size }) {
 
