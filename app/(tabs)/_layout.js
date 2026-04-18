@@ -14,6 +14,18 @@ Notifications.setNotificationHandler({
     shouldSetBadge: false,
   }),
 });
+// Créer le canal Android (obligatoire Android 8+)
+    if (Platform.OS === 'android') {
+      Notifications.setNotificationChannelAsync('default', {
+        name: 'Cycy Food',
+        importance: Notifications.AndroidImportance.MAX,
+        vibrationPattern: [0, 250, 250, 250],
+        lightColor: '#FF6B35',
+        sound: 'default',
+        enableVibrate: true,
+        showBadge: true,
+      });
+    }
 
 function CartIcon({ color, size }) {
 
