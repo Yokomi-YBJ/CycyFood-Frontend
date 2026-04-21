@@ -1,5 +1,5 @@
 // app/(tabs)/_layout.js
-import { Tabs } from 'expo-router';
+import { Tabs, usePathname } from 'expo-router';
 import { View, Text, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useCart } from '../../context/CartContext';
@@ -14,18 +14,7 @@ Notifications.setNotificationHandler({
     shouldSetBadge: false,
   }),
 });
-// Créer le canal Android (obligatoire Android 8+)
-    if (Platform.OS === 'android') {
-      Notifications.setNotificationChannelAsync('default', {
-        name: 'Cycy Food',
-        importance: Notifications.AndroidImportance.MAX,
-        vibrationPattern: [0, 250, 250, 250],
-        lightColor: '#FF6B35',
-        sound: 'default',
-        enableVibrate: true,
-        showBadge: true,
-      });
-    }
+
 
 function CartIcon({ color, size }) {
 
@@ -45,7 +34,12 @@ function CartIcon({ color, size }) {
 
 export default function TabsLayout() {
   const insets = useSafeAreaInsets();
+  const pathname = usePathname();
   const BASE_HEIGHT = 60;
+  
+  // Masquer la tabBar si on est sur une page secondaire du profil
+  const hideTabBar = pathname.startsWith('/profil') && pathname !== '/profil';
+  
   return (
     <Tabs
       screenOptions={{
@@ -60,7 +54,8 @@ export default function TabsLayout() {
           shadowOpacity: 0.08,
           shadowRadius: 12,
           height: BASE_HEIGHT + insets.bottom, 
-          paddingBottom: insets.bottom > 0 ? insets.bottom : 0, 
+          paddingBottom: insets.bottom > 0 ? insets.bottom : 0,
+          display: hideTabBar ? 'none' : 'flex',
         },
         tabBarLabelStyle: { fontSize: 11, fontWeight: '600' },
       }}

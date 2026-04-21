@@ -27,12 +27,33 @@ const STATUT_CFG = {
   annulee:      { label: 'Annulée',      color: '#f44336', bg: '#f4433618', icon: 'close-circle-outline' },
 };
 
-const TRANSITIONS = {
-  en_attente:   ['confirmee', 'annulee'],
-  confirmee:    ['en_livraison', 'annulee'],
-  en_livraison: ['livree', 'annulee'],
-  livree:       [],
-  annulee:      [],
+// ── Transitions selon le type de commande ──────────────────
+// Sans livraison : en_attente → confirmee → (fin)
+// Avec livraison : en_attente → en_livraison → livree → (fin)
+const getTransitions = (statut, avec_livraison) => {
+  if (avec_livraison) {
+    return {
+      en_attente:   ['en_livraison', 'annulee'],
+      en_livraison: ['livree', 'annulee'],
+      confirmee:    ['en_livraison', 'annulee'], // sécurité
+      livree:       [],
+      annulee:      [],
+    }[statut] || [];
+  } else {
+    return {
+      en_attente: ['confirmee', 'annulee'],
+      confirmee:  ['annulee'],
+      livree:     [],
+      annulee:    [],
+    }[statut] || [];
+  }
+};
+
+const LABELS_ACTION = {
+  confirmee:    'Confirmer la commande',
+  en_livraison: 'Mettre en livraison',
+  livree:       'Marquer comme livrée',
+  annulee:      'Annuler la commande',
 };
 
 export default function AdminCommandes() {
@@ -54,7 +75,7 @@ export default function AdminCommandes() {
       const data = await res.json();
       if (data.status === 'success') setCommandes(data.commandes);
     } catch (e) {
-      Alert.alert('Problème de connexion', 'Impossible de charger les commandes.');
+      Alert.alert('Erreur', 'Impossible de charger les commandes.');
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -81,7 +102,7 @@ export default function AdminCommandes() {
         Alert.alert('Erreur', data.message);
       }
     } catch (e) {
-      Alert.alert('Problème de connexion', 'Impossible de modifier la commande. Réessayez.');
+      Alert.alert('Erreur réseau', 'Impossible de modifier la commande.');
     } finally {
       setActionLoading(false);
     }
@@ -93,23 +114,36 @@ export default function AdminCommandes() {
   };
 
   const renderCommande = ({ item }) => {
-    const cfg = STATUT_CFG[item.statut] || STATUT_CFG.en_attente;
+    const cfg          = STATUT_CFG[item.statut] || STATUT_CFG.en_attente;
+    const aLivraison   = item.avec_livraison === 1 || item.avec_livraison === true;
+
     return (
       <TouchableOpacity
         style={styles.cmdCard}
         onPress={() => { setCmdSelectionnee(item); setNoteAdmin(item.note_admin || ''); }}
         activeOpacity={0.85}
       >
-        {/* En-tête */}
         <View style={styles.cmdHeader}>
           <Text style={styles.cmdId}>Commande #{item.id_commande}</Text>
-          <View style={[styles.statutPill, { backgroundColor: cfg.bg }]}>
-            <Ionicons name={cfg.icon} size={11} color={cfg.color} />
-            <Text style={[styles.statutText, { color: cfg.color }]}>{cfg.label}</Text>
+          <View style={styles.cmdHeaderRight}>
+            {/* Badge type livraison */}
+            <View style={[styles.typeBadge, aLivraison ? styles.typeBadgeLivraison : styles.typeBadgeRetrait]}>
+              <Ionicons
+                name={aLivraison ? 'bicycle-outline' : 'storefront-outline'}
+                size={10}
+                color={aLivraison ? '#9C27B0' : '#4CAF50'}
+              />
+              <Text style={[styles.typeBadgeText, { color: aLivraison ? '#9C27B0' : '#4CAF50' }]}>
+                {aLivraison ? 'Livraison' : 'Retrait'}
+              </Text>
+            </View>
+            <View style={[styles.statutPill, { backgroundColor: cfg.bg }]}>
+              <Ionicons name={cfg.icon} size={11} color={cfg.color} />
+              <Text style={[styles.statutText, { color: cfg.color }]}>{cfg.label}</Text>
+            </View>
           </View>
         </View>
 
-        {/* Client */}
         <View style={styles.clientRow}>
           <View style={styles.clientAvatar}>
             <Text style={styles.clientAvatarText}>
@@ -122,26 +156,18 @@ export default function AdminCommandes() {
               <Ionicons name="location-outline" size={11} color="#aaa" /> {item.adresse_user}
             </Text>
           </View>
-          {/* Bouton appel direct */}
-          <TouchableOpacity
-            style={styles.callBtn}
-            onPress={() => appelerClient(item.telephone_client)}
-          >
+          <TouchableOpacity style={styles.callBtn} onPress={() => appelerClient(item.telephone_client)}>
             <Ionicons name="call" size={18} color="#fff" />
           </TouchableOpacity>
         </View>
 
-        {/* Produits */}
         <View style={styles.produitsRow}>
           <Ionicons name="restaurant-outline" size={13} color="#aaa" />
           <Text style={styles.produitsText} numberOfLines={2}>{item.produits_detail}</Text>
         </View>
 
-        {/* Footer */}
         <View style={styles.cmdFooter}>
-          <Text style={styles.cmdDate}>
-            {item.date_commande} · {item.heure_commande?.slice(0,5)}
-          </Text>
+          <Text style={styles.cmdDate}>{item.date_commande} · {item.heure_commande?.slice(0, 5)}</Text>
           <Text style={styles.cmdPrix}>{item.prix_commande} Fcfa</Text>
         </View>
 
@@ -157,129 +183,140 @@ export default function AdminCommandes() {
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
-      <StatusBar barStyle="light-content" backgroundColor="#FF6B35" />
-    <View style={styles.containt}>
+      <StatusBar barStyle="dark-content" backgroundColor="#f4f4f8" />
+      <View style={styles.containt}>
       {/* Modal détail commande */}
       <Modal visible={!!cmdSelectionnee} transparent animationType="slide">
         <View style={styles.modalOverlay}>
           <View style={styles.modalContainer}>
-            {cmdSelectionnee && (
-              <>
-                <View style={styles.modalHeader}>
-                  <Text style={styles.modalTitle}>Commande #{cmdSelectionnee.id_commande}</Text>
-                  <TouchableOpacity onPress={() => setCmdSelectionnee(null)}>
-                    <Ionicons name="close" size={24} color="#1a1a1a" />
-                  </TouchableOpacity>
-                </View>
-                <ScrollView style={styles.modalScroll}>
+            {cmdSelectionnee && (() => {
+              const aLivraison  = cmdSelectionnee.avec_livraison === 1 || cmdSelectionnee.avec_livraison === true;
+              const transitions = getTransitions(cmdSelectionnee.statut, aLivraison);
 
-                  {/* Infos client */}
-                  <View style={styles.modalSection}>
-                    <Text style={styles.modalSectionTitle}>Client</Text>
-                    <View style={styles.modalInfoCard}>
-                      <View style={styles.modalInfoRow}>
-                        <Ionicons name="person-outline" size={16} color="#FF6B35" />
-                        <Text style={styles.modalInfoText}>{cmdSelectionnee.nom_user} {cmdSelectionnee.prenom_user}</Text>
-                      </View>
-                      <View style={styles.modalInfoRow}>
-                        <Ionicons name="location-outline" size={16} color="#FF6B35" />
-                        <Text style={styles.modalInfoText}>{cmdSelectionnee.adresse_user}</Text>
-                      </View>
-                      <View style={styles.modalInfoRow}>
-                        <Ionicons name="call-outline" size={16} color="#FF6B35" />
-                        <Text style={styles.modalInfoText}>{cmdSelectionnee.telephone_client}</Text>
+              return (
+                <>
+                  <View style={styles.modalHeader}>
+                    <View>
+                      <Text style={styles.modalTitle}>Commande #{cmdSelectionnee.id_commande}</Text>
+                      <View style={[styles.typeBadge, aLivraison ? styles.typeBadgeLivraison : styles.typeBadgeRetrait, { marginTop: 4 }]}>
+                        <Ionicons name={aLivraison ? 'bicycle-outline' : 'storefront-outline'} size={11} color={aLivraison ? '#9C27B0' : '#4CAF50'} />
+                        <Text style={[styles.typeBadgeText, { color: aLivraison ? '#9C27B0' : '#4CAF50' }]}>
+                          {aLivraison ? 'Livraison à domicile' : 'Retrait sur place'}
+                        </Text>
                       </View>
                     </View>
-
-                    {/* Bouton appel */}
-                    <TouchableOpacity
-                      style={styles.callBtnLarge}
-                      onPress={() => appelerClient(cmdSelectionnee.telephone_client)}
-                    >
-                      <Ionicons name="call" size={20} color="#fff" />
-                      <Text style={styles.callBtnText}>Appeler le client</Text>
+                    <TouchableOpacity onPress={() => setCmdSelectionnee(null)}>
+                      <Ionicons name="close" size={24} color="#1a1a1a" />
                     </TouchableOpacity>
                   </View>
 
-                  {/* Produits commandés */}
-                  <View style={styles.modalSection}>
-                    <Text style={styles.modalSectionTitle}>Produits</Text>
-                    <View style={styles.modalInfoCard}>
-                      <Text style={styles.modalProduits}>{cmdSelectionnee.produits_detail}</Text>
-                    </View>
-                    <Text style={styles.modalTotal}>Total : {cmdSelectionnee.prix_commande} Fcfa</Text>
-                  </View>
+                  <ScrollView style={styles.modalScroll}>
 
-                  {/* Note admin */}
-                  <View style={styles.modalSection}>
-                    <Text style={styles.modalSectionTitle}>Note interne (optionnel)</Text>
-                    <View style={styles.noteInput}>
-                      <TextInput
-                        style={styles.noteInputField}
-                        placeholder="Ex: client difficile à trouver..."
-                        placeholderTextColor="#bbb"
-                        value={noteAdmin}
-                        onChangeText={setNoteAdmin}
-                        multiline
-                        numberOfLines={2}
-                        autoCorrect={false}
-                      />
-                    </View>
-                  </View>
-
-                  {/* Actions statut */}
-                  {TRANSITIONS[cmdSelectionnee.statut]?.length > 0 && (
+                    {/* Client */}
                     <View style={styles.modalSection}>
-                      <Text style={styles.modalSectionTitle}>Changer le statut</Text>
-                      {TRANSITIONS[cmdSelectionnee.statut].map(s => {
-                        const cfg = STATUT_CFG[s];
-                        return (
-                          <TouchableOpacity
-                            key={s}
-                            style={[styles.actionStatutBtn, { backgroundColor: cfg.bg, borderColor: cfg.color }]}
-                            onPress={() => {
-                              Alert.alert(
-                                `Passer en "${cfg.label}" ?`,
-                                'Cette action sera visible par le client.',
-                                [
-                                  { text: 'Annuler', style: 'cancel' },
-                                  { text: 'Confirmer', onPress: () => changerStatut(cmdSelectionnee.id_commande, s) },
-                                ]
-                              );
-                            }}
-                            disabled={actionLoading}
-                          >
-                            {actionLoading
-                              ? <ActivityIndicator color={cfg.color} />
-                              : <>
-                                  <Ionicons name={cfg.icon} size={18} color={cfg.color} />
-                                  <Text style={[styles.actionStatutText, { color: cfg.color }]}>
-                                    {s === 'confirmee'    && 'Confirmer la commande'}
-                                    {s === 'en_livraison' && 'Mettre en livraison'}
-                                    {s === 'livree'       && 'Marquer comme livrée'}
-                                    {s === 'annulee'      && 'Annuler la commande'}
-                                  </Text>
-                                </>
-                            }
-                          </TouchableOpacity>
-                        );
-                      })}
+                      <Text style={styles.modalSectionTitle}>Client</Text>
+                      <View style={styles.modalInfoCard}>
+                        <View style={styles.modalInfoRow}>
+                          <Ionicons name="person-outline" size={16} color="#FF6B35" />
+                          <Text style={styles.modalInfoText}>{cmdSelectionnee.nom_user} {cmdSelectionnee.prenom_user}</Text>
+                        </View>
+                        <View style={styles.modalInfoRow}>
+                          <Ionicons name="location-outline" size={16} color="#FF6B35" />
+                          <Text style={styles.modalInfoText}>{cmdSelectionnee.adresse_user}</Text>
+                        </View>
+                        <View style={styles.modalInfoRow}>
+                          <Ionicons name="call-outline" size={16} color="#FF6B35" />
+                          <Text style={styles.modalInfoText}>{cmdSelectionnee.telephone_client}</Text>
+                        </View>
+                      </View>
+                      <TouchableOpacity style={styles.callBtnLarge} onPress={() => appelerClient(cmdSelectionnee.telephone_client)}>
+                        <Ionicons name="call" size={20} color="#fff" />
+                        <Text style={styles.callBtnText}>Appeler le client</Text>
+                      </TouchableOpacity>
                     </View>
-                  )}
 
-                  {(cmdSelectionnee.statut === 'livree' || cmdSelectionnee.statut === 'annulee') && (
-                    <View style={styles.termineCard}>
-                      <Ionicons name={cmdSelectionnee.statut === 'livree' ? 'checkmark-done-circle' : 'close-circle'} size={24} color={cmdSelectionnee.statut === 'livree' ? '#4CAF50' : '#f44336'} />
-                      <Text style={[styles.termineText, { color: cmdSelectionnee.statut === 'livree' ? '#4CAF50' : '#f44336' }]}>
-                        {cmdSelectionnee.statut === 'livree' ? 'Commande livrée — terminée' : 'Commande annulée'}
-                      </Text>
+                    {/* Produits */}
+                    <View style={styles.modalSection}>
+                      <Text style={styles.modalSectionTitle}>Produits</Text>
+                      <View style={styles.modalInfoCard}>
+                        <Text style={styles.modalProduits}>{cmdSelectionnee.produits_detail}</Text>
+                      </View>
+                      <Text style={styles.modalTotal}>Total : {cmdSelectionnee.prix_commande} Fcfa</Text>
                     </View>
-                  )}
-                </ScrollView>
-              </>
-            )}
+
+                    {/* Note admin */}
+                    <View style={styles.modalSection}>
+                      <Text style={styles.modalSectionTitle}>Note interne (optionnel)</Text>
+                      <View style={styles.noteInput}>
+                        <TextInput
+                          style={styles.noteInputField}
+                          placeholder="Ex: client difficile à trouver..."
+                          placeholderTextColor="#bbb"
+                          value={noteAdmin}
+                          onChangeText={setNoteAdmin}
+                          multiline
+                          numberOfLines={2}
+                          autoCorrect={false}
+                        />
+                      </View>
+                    </View>
+
+                    {/* Actions statut */}
+                    {transitions.length > 0 && (
+                      <View style={styles.modalSection}>
+                        <Text style={styles.modalSectionTitle}>Changer le statut</Text>
+                        {transitions.map(s => {
+                          const cfg = STATUT_CFG[s];
+                          return (
+                            <TouchableOpacity
+                              key={s}
+                              style={[styles.actionStatutBtn, { backgroundColor: cfg.bg, borderColor: cfg.color }]}
+                              onPress={() => {
+                                Alert.alert(
+                                  `Passer en "${cfg.label}" ?`,
+                                  'Cette action sera visible par le client.',
+                                  [
+                                    { text: 'Annuler', style: 'cancel' },
+                                    { text: 'Confirmer', onPress: () => changerStatut(cmdSelectionnee.id_commande, s) },
+                                  ]
+                                );
+                              }}
+                              disabled={actionLoading}
+                            >
+                              {actionLoading
+                                ? <ActivityIndicator color={cfg.color} />
+                                : <>
+                                    <Ionicons name={cfg.icon} size={18} color={cfg.color} />
+                                    <Text style={[styles.actionStatutText, { color: cfg.color }]}>
+                                      {LABELS_ACTION[s]}
+                                    </Text>
+                                  </>
+                              }
+                            </TouchableOpacity>
+                          );
+                        })}
+                      </View>
+                    )}
+
+                    {transitions.length === 0 && (
+                      <View style={styles.termineCard}>
+                        <Ionicons
+                          name={cmdSelectionnee.statut === 'livree' || cmdSelectionnee.statut === 'confirmee' ? 'checkmark-done-circle' : 'close-circle'}
+                          size={24}
+                          color={cmdSelectionnee.statut === 'annulee' ? '#f44336' : '#4CAF50'}
+                        />
+                        <Text style={[styles.termineText, { color: cmdSelectionnee.statut === 'annulee' ? '#f44336' : '#4CAF50' }]}>
+                          {cmdSelectionnee.statut === 'annulee' ? 'Commande annulée' : 'Commande terminée'}
+                        </Text>
+                      </View>
+                    )}
+                  </ScrollView>
+                </>
+              );
+            })()}
           </View>
         </View>
+        <View style={{height: 40}}/>
       </Modal>
 
       {/* Header */}
@@ -290,7 +327,7 @@ export default function AdminCommandes() {
         </TouchableOpacity>
       </View>
 
-      {/* Filtres statut */}
+      {/* Filtres */}
       <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.filtres} contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 8 }}>
         {STATUTS.map(s => (
           <TouchableOpacity
@@ -327,7 +364,7 @@ export default function AdminCommandes() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#FF6B35' },
-  containt: {flex: 1, backgroundColor: 'white'},
+  containt: {flex: 1, backgroundColor:"#f8f8f8",},
   header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 20, paddingVertical: 14 },
   headerTitle: { fontSize: 24, fontWeight: '800', color: '#1a1a1a' },
   refreshBtn: { padding: 6 },
@@ -337,8 +374,13 @@ const styles = StyleSheet.create({
   list: { paddingHorizontal: 16, paddingBottom: 20 },
 
   cmdCard: { backgroundColor: '#fff', borderRadius: 16, padding: 16, marginBottom: 12, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.06, shadowRadius: 8, elevation: 2 },
-  cmdHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 },
+  cmdHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12 },
+  cmdHeaderRight: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   cmdId: { fontSize: 14, fontWeight: '800', color: '#1a1a1a' },
+  typeBadge: { flexDirection: 'row', alignItems: 'center', gap: 3, borderRadius: 20, paddingHorizontal: 7, paddingVertical: 3 },
+  typeBadgeLivraison: { backgroundColor: '#9C27B015' },
+  typeBadgeRetrait: { backgroundColor: '#4CAF5015' },
+  typeBadgeText: { fontSize: 10, fontWeight: '700' },
   statutPill: { flexDirection: 'row', alignItems: 'center', gap: 4, borderRadius: 20, paddingHorizontal: 10, paddingVertical: 4 },
   statutText: { fontSize: 11, fontWeight: '700' },
 
@@ -364,10 +406,9 @@ const styles = StyleSheet.create({
   emptyEmoji: { fontSize: 56, marginBottom: 12 },
   emptyText: { fontSize: 16, color: '#aaa', fontWeight: '600' },
 
-  // Modal
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
   modalContainer: { backgroundColor: '#fff', borderTopLeftRadius: 24, borderTopRightRadius: 24, maxHeight: '90%' },
-  modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 20, borderBottomWidth: 1, borderBottomColor: '#f0f0f0' },
+  modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', padding: 20, borderBottomWidth: 1, borderBottomColor: '#f0f0f0' },
   modalTitle: { fontSize: 18, fontWeight: '800', color: '#1a1a1a' },
   modalScroll: { padding: 20 },
   modalSection: { marginBottom: 20 },

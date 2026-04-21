@@ -207,10 +207,10 @@ const styles = StyleSheet.create({
   heroRight: { justifyContent: 'center', alignItems: 'center',},
   heroLogo: { width: 100, height: 100,borderRadius: 4,  },
 
-  avantages: { paddingLeft: 16, marginBottom: 8 },
+  avantages: { paddingLeft: 16, paddingVertical: 20, marginBottom: 8 },
   avantageCard: {
     alignItems: 'center', marginRight: 12,
-    backgroundColor: '#fff', borderRadius: 16, padding: 14,
+    backgroundColor: '#fff', borderRadius: 16, padding: 20,
     width: 110, shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.06,
     shadowRadius: 8, elevation: 3,
@@ -222,12 +222,12 @@ const styles = StyleSheet.create({
   sectionTitle: { fontSize: 20, fontWeight: '800', color: '#1a1a1a' },
   accent: { color: '#FF6B35' },
 
-  specialites: { paddingLeft: 16, marginBottom: 4 },
+  specialites: { paddingLeft: 16, paddingVertical: 16, marginBottom: 8 },
   specialiteCard: {
     width: 160, marginRight: 12, borderRadius: 16, backgroundColor: '#fff',
     overflow: 'hidden', shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.07,
-    shadowRadius: 8, elevation: 3,
+    shadowRadius: 8, elevation: 3, paddingBottom: 8,
   },
   specialiteImg: { width: '100%', height: 120 },
   specialiteNom: { fontSize: 14, fontWeight: '700', color: '#1a1a1a', padding: 10, paddingBottom: 4 },

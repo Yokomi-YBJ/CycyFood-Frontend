@@ -211,12 +211,13 @@ export default function SignupScreen() {
 
       <KeyboardAvoidingView
         style={styles.container}
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
         <ScrollView
           contentContainerStyle={styles.scroll}
           keyboardShouldPersistTaps="handled"
           keyboardDismissMode="none"
+          style={styles.scrollBase}
         >
           {/* Logo */}
           <View style={styles.header}>
@@ -452,10 +453,13 @@ export default function SignupScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#FF6B35' },
   scroll: { flexGrow: 1, justifyContent: 'center', padding: 20, paddingVertical: 40, backgroundColor: '#FF6B35' },
+  // FIX: backgroundColor pour couvrir le blanc en bas
+  scrollBase: { backgroundColor: '#FF6B35' },
 
   header: { alignItems: 'center', marginBottom: 20 },
-  logoCircle: { width: 70, height: 70, borderRadius: 35, backgroundColor: '#fff', overflow: 'hidden', marginBottom: 10 },
-  logoImg: { width: 70, height: 70, resizeMode: 'cover' },
+  // FIX: logo harmonisé à 80
+  logoCircle: { width: 80, height: 80, borderRadius: 40, backgroundColor: '#fff', overflow: 'hidden', marginBottom: 10 },
+  logoImg: { width: 80, height: 80, resizeMode: 'cover' },
   brandName: { fontSize: 26, fontWeight: '800', color: '#fff' },
 
   progressContainer: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', marginBottom: 20 },
@@ -530,7 +534,7 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.35, shadowRadius: 10, elevation: 6,
   },
   btnSuivantDisabled: { backgroundColor: '#ccc', shadowOpacity: 0, elevation: 0 },
-  btnSuivantText: { color: '#fff', fontSize: 16, fontWeight: '700' },
+  btnSuivantText: { color: '#fff', fontSize: 16, fontWeight: '700', textAlign: 'center', justifyContent: 'center' },
 
   linkRow: { flexDirection: 'row', justifyContent: 'center', marginTop: 18 },
   linkText: { color: '#888', fontSize: 14 },

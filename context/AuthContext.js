@@ -2,13 +2,14 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import * as SecureStore from 'expo-secure-store';
 import * as Notifications from 'expo-notifications';
+import { Platform } from 'react-native';
 import { ENDPOINTS } from '../constants/api';
 
 const AuthContext = createContext(null);
 
-// ← Plus d'import Constants — projectId hardcodé directement
 const EXPO_PROJECT_ID = 'c46f6b6d-56ce-410d-ade8-84c2413db122';
 
+// ── Configuration globale des notifications ───────────────
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
     shouldShowAlert: true,
@@ -17,43 +18,58 @@ Notifications.setNotificationHandler({
   }),
 });
 
-// ===================== ENREGISTRER LE PUSH TOKEN =====================
+// ── Créer le canal Android (obligatoire Android 8+) ───────
+const creerCanalAndroid = async () => {
+  if (Platform.OS !== 'android') return;
+  await Notifications.setNotificationChannelAsync('default', {
+    name: 'Cycy Food',
+    importance: Notifications.AndroidImportance.MAX,
+    vibrationPattern: [0, 250, 250, 250],
+    lightColor: '#FF6B35',
+    sound: 'default',
+    enableVibrate: true,
+    showBadge: true,
+  });
+  // Canal dédié aux commandes admin
+  await Notifications.setNotificationChannelAsync('commandes', {
+    name: 'Nouvelles commandes',
+    importance: Notifications.AndroidImportance.HIGH,
+    vibrationPattern: [0, 500, 200, 500],
+    lightColor: '#FF6B35',
+    sound: 'default',
+    enableVibrate: true,
+    showBadge: true,
+  });
+};
+
+// ── Enregistrer le push token ─────────────────────────────
 const enregistrerPushToken = async (userJwtToken) => {
   try {
-    console.log('[NOTIF] Démarrage enregistrement push token...');
+    console.log('[NOTIF] Démarrage enregistrement...');
 
+    await creerCanalAndroid();
 
-    // Vérifier permission
     const { status: existingStatus } = await Notifications.getPermissionsAsync();
-    console.log('[NOTIF] Permission actuelle:', existingStatus);
-
     let finalStatus = existingStatus;
+
     if (existingStatus !== 'granted') {
       const { status } = await Notifications.requestPermissionsAsync();
       finalStatus = status;
-      console.log('[NOTIF] Permission après demande:', finalStatus);
     }
 
     if (finalStatus !== 'granted') {
-      console.log('[NOTIF] BLOQUÉ — permission refusée');
+      console.log('[NOTIF] Permission refusée');
       return null;
     }
 
-    // Obtenir le token
-    console.log('[NOTIF] Appel getExpoPushTokenAsync...');
     const tokenData = await Notifications.getExpoPushTokenAsync({
       projectId: EXPO_PROJECT_ID,
     });
 
     const pushToken = tokenData.data;
 
-    if (!pushToken) {
-      console.log('[NOTIF] ERREUR — token vide ou null');
-      return null;
-    }
+    if (!pushToken) return null;
 
-    // Envoyer au backend
-    console.log('[NOTIF] Envoi token au backend...');
     const response = await fetch(ENDPOINTS.pushToken, {
       method: 'POST',
       headers: {
@@ -64,43 +80,37 @@ const enregistrerPushToken = async (userJwtToken) => {
     });
 
     const result = await response.json();
-    console.log('[NOTIF] Réponse backend:', JSON.stringify(result));
-
-    if (result.status === 'success') {
-      console.log('[NOTIF] ✅ Token enregistré avec succès en base !');
-    } else {
-      console.log('[NOTIF] ❌ Échec enregistrement:', result.message);
-    }
+    console.log('[NOTIF] Réponse backend:', result.status);
 
     return pushToken;
   } catch (err) {
-    console.log('[NOTIF] ❌ ERREUR:', err.message);
-    console.log('[NOTIF] Stack:', err.stack);
+    console.log('[NOTIF] Erreur:', err.message);
     return null;
   }
 };
 
 export function AuthProvider({ children }) {
-  const [user, setUser] = useState(null);
-  const [token, setToken] = useState(null);
+  const [user, setUser]     = useState(null);
+  const [token, setToken]   = useState(null);
   const [loading, setLoading] = useState(true);
 
-  // Charger la session sauvegardée au démarrage
+  // ── Charger la session sauvegardée ───────────────────────
   useEffect(() => {
     const loadSession = async () => {
       try {
+        // Créer le canal Android dès le démarrage
+        await creerCanalAndroid();
+
         const savedToken = await SecureStore.getItemAsync('token');
-        const savedUser = await SecureStore.getItemAsync('user');
+        const savedUser  = await SecureStore.getItemAsync('user');
+
         if (savedToken && savedUser) {
           setToken(savedToken);
           setUser(JSON.parse(savedUser));
-          // Délai court pour laisser l'app s'initialiser complètement
-          setTimeout(() => {
-            enregistrerPushToken(savedToken);
-          }, 2000);
+          setTimeout(() => enregistrerPushToken(savedToken), 2000);
         }
       } catch (e) {
-        console.log('[AUTH] Erreur chargement session:', e);
+        console.log('[AUTH] Erreur chargement session:', e.message);
       } finally {
         setLoading(false);
       }
@@ -108,23 +118,19 @@ export function AuthProvider({ children }) {
     loadSession();
   }, []);
 
-  // Écouter les notifications reçues en foreground
+  // ── Écouter les notifications ─────────────────────────────
   useEffect(() => {
-    const sub1 = Notifications.addNotificationReceivedListener(notification => {
-      console.log('[NOTIF] Reçue (foreground):', notification.request.content.title);
+    const sub1 = Notifications.addNotificationReceivedListener(notif => {
+      console.log('[NOTIF] Reçue:', notif.request.content.title);
     });
-
     const sub2 = Notifications.addNotificationResponseReceivedListener(response => {
       const data = response.notification.request.content.data;
-      console.log('[NOTIF] Touchée par l\'utilisateur:', data);
+      console.log('[NOTIF] Touchée:', data);
     });
-
-    return () => {
-      sub1.remove();
-      sub2.remove();
-    };
+    return () => { sub1.remove(); sub2.remove(); };
   }, []);
 
+  // ── Connexion ─────────────────────────────────────────────
   const connexion = async (telephone, password) => {
     const res = await fetch(ENDPOINTS.connexion, {
       method: 'POST',
@@ -137,14 +143,12 @@ export function AuthProvider({ children }) {
       await SecureStore.setItemAsync('user', JSON.stringify(data.user));
       setToken(data.token);
       setUser(data.user);
-      // Délai pour laisser la navigation se stabiliser avant d'enregistrer
-      setTimeout(() => {
-        enregistrerPushToken(data.token);
-      }, 1500);
+      setTimeout(() => enregistrerPushToken(data.token), 1500);
     }
     return data;
   };
 
+  // ── Inscription ───────────────────────────────────────────
   const inscription = async (form) => {
     const res = await fetch(ENDPOINTS.inscription, {
       method: 'POST',
@@ -157,9 +161,7 @@ export function AuthProvider({ children }) {
       await SecureStore.setItemAsync('user', JSON.stringify(data.user));
       setToken(data.token);
       setUser(data.user);
-      setTimeout(() => {
-        enregistrerPushToken(data.token);
-      }, 1500);
+      setTimeout(() => enregistrerPushToken(data.token), 1500);
     }
     return data;
   };

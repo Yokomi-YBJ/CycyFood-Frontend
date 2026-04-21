@@ -47,12 +47,13 @@ export default function LoginScreen() {
       <StatusBar barStyle="light-content" backgroundColor="#FF6B35" />
       <KeyboardAvoidingView
         style={styles.container}
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
         <ScrollView
           contentContainerStyle={styles.scroll}
           keyboardShouldPersistTaps="handled"
           keyboardDismissMode="none"
+          style={styles.scrollBase}
         >
           {/* Header */}
           <View style={styles.header}>
@@ -134,15 +135,18 @@ export default function LoginScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#FF6B35' },
+  // FIX: backgroundColor ici aussi pour que le ScrollView couvre tout
+  scrollBase: { backgroundColor: '#FF6B35' },
   scroll: { flexGrow: 1, justifyContent: 'center', padding: 20 },
   header: { alignItems: 'center', marginBottom: 32 },
+  // FIX: logo harmonisé à 80
   logoCircle: {
-    width: 90, height: 90, borderRadius: 45,
+    width: 80, height: 80, borderRadius: 40,
     backgroundColor: '#fff',
     alignItems: 'center', justifyContent: 'center', marginBottom: 12,
     overflow: 'hidden',
   },
-  logoImg: { width: 90, height: 90, resizeMode: 'cover' },
+  logoImg: { width: 80, height: 80, resizeMode: 'cover' },
   brandName: { fontSize: 34, fontWeight: '800', color: '#fff', letterSpacing: 1 },
   tagline: { fontSize: 14, color: 'rgba(255,255,255,0.85)', marginTop: 4, letterSpacing: 0.5 },
   card: {

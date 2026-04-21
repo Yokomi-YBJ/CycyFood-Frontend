@@ -10,11 +10,35 @@ import { useAuth } from '../../context/AuthContext';
 import { ENDPOINTS } from '../../constants/api';
 
 const STATUT_CFG = {
-  en_attente:   { label: 'En attente',   color: '#FF9800', bg: '#FF980015', icon: 'time-outline',          desc: 'Votre commande est en cours de traitement.' },
-  confirmee:    { label: 'Confirmée ✓',  color: '#2196F3', bg: '#2196F315', icon: 'checkmark-circle-outline', desc: 'Votre commande a été confirmée par Cycy-Food !' },
-  en_livraison: { label: 'En livraison', color: '#9C27B0', bg: '#9C27B015', icon: 'bicycle-outline',       desc: 'Votre commande est en route vers vous 🛵' },
-  livree:       { label: 'Livrée',       color: '#4CAF50', bg: '#4CAF5015', icon: 'bag-check-outline',     desc: 'Commande livrée. Bon appétit ! 🎉' },
-  annulee:      { label: 'Annulée',      color: '#f44336', bg: '#f4433615', icon: 'close-circle-outline',  desc: 'Cette commande a été annulée.' },
+  en_attente:   { label: 'En attente',   color: '#FF9800', bg: '#FF980015', icon: 'time-outline',             desc: 'Votre commande est en cours de traitement.' },
+  confirmee:    { label: 'Confirmée',    color: '#2196F3', bg: '#2196F315', icon: 'checkmark-circle-outline', desc: 'Votre commande a été confirmée ! Venez la récupérer.' },
+  en_livraison: { label: 'En livraison', color: '#9C27B0', bg: '#9C27B015', icon: 'bicycle-outline',          desc: 'Votre commande est en route vers vous 🛵' },
+  livree:       { label: 'Livrée',       color: '#4CAF50', bg: '#4CAF5015', icon: 'bag-check-outline',        desc: 'Commande livrée. Bon appétit ! 🎉' },
+  annulee:      { label: 'Annulée',      color: '#f44336', bg: '#f4433615', icon: 'close-circle-outline',     desc: 'Cette commande a été annulée.' },
+};
+
+// ── Règle "en cours" ──────────────────────────────────────
+// Une commande est "en cours" si :
+//   - Son statut est en_attente ou en_livraison
+//   - OU son statut est confirmee (retrait sur place, pas encore récupéré)
+//     ET elle date de moins de 3 jours
+// Elle passe en "historique" si :
+//   - Statut livree ou annulee
+//   - OU statut confirmee depuis plus de 3 jours
+const estEnCours = (cmd) => {
+  const statut = cmd.statut || 'en_attente';
+
+  if (statut === 'en_attente' || statut === 'en_livraison') return true;
+  if (statut === 'annulee' || statut === 'livree') return false;
+
+  if (statut === 'confirmee') {
+    const dateCmd  = new Date(cmd.date_commande);
+    const maintenant = new Date();
+    const diffJours = (maintenant - dateCmd) / (1000 * 60 * 60 * 24);
+    return diffJours < 3; // moins de 3 jours → encore en cours
+  }
+
+  return false;
 };
 
 export default function CommandesScreen() {
@@ -32,7 +56,7 @@ export default function CommandesScreen() {
       if (data.status === 'success') setCommandes(data.commandes);
       else Alert.alert('Erreur', data.message);
     } catch (e) {
-      Alert.alert('Problème de connexion', 'Impossible de charger vos commandes. Vérifiez votre connexion internet.');
+      Alert.alert('Erreur réseau', 'Impossible de charger vos commandes.');
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -40,11 +64,7 @@ export default function CommandesScreen() {
   };
 
   useEffect(() => { fetchCommandes(); }, []);
-
-  const onRefresh = useCallback(() => {
-    setRefreshing(true);
-    fetchCommandes();
-  }, []);
+  const onRefresh = useCallback(() => { setRefreshing(true); fetchCommandes(); }, []);
 
   const formatDate = (dateStr) => {
     const d = new Date(dateStr);
@@ -52,20 +72,33 @@ export default function CommandesScreen() {
   };
 
   const renderCommande = ({ item }) => {
-    const statut = item.statut || 'en_attente';
-    const cfg = STATUT_CFG[statut] || STATUT_CFG.en_attente;
+    const statut      = item.statut || 'en_attente';
+    const cfg         = STATUT_CFG[statut] || STATUT_CFG.en_attente;
+    const aLivraison  = item.avec_livraison === 1 || item.avec_livraison === true;
 
     return (
       <View style={styles.card}>
 
-        {/* Header carte */}
         <View style={styles.cardHeader}>
           <View style={styles.cmdIdWrap}>
-            <Text style={styles.cmdId}></Text>
           </View>
-          <View style={[styles.statutBadge, { backgroundColor: cfg.bg }]}>
-            <Ionicons name={cfg.icon} size={13} color={cfg.color} />
-            <Text style={[styles.statutText, { color: cfg.color }]}>{cfg.label}</Text>
+          <View style={styles.cardHeaderRight}>
+            {/* Badge type */}
+            <View style={[styles.typeBadge, aLivraison ? styles.typeBadgeLivraison : styles.typeBadgeRetrait]}>
+              <Ionicons
+                name={aLivraison ? 'bicycle-outline' : 'storefront-outline'}
+                size={10}
+                color={aLivraison ? '#9C27B0' : '#4CAF50'}
+              />
+              <Text style={[styles.typeBadgeText, { color: aLivraison ? '#9C27B0' : '#4CAF50' }]}>
+                {aLivraison ? 'Livraison' : 'Retrait'}
+              </Text>
+            </View>
+            {/* Badge statut */}
+            <View style={[styles.statutBadge, { backgroundColor: cfg.bg }]}>
+              <Ionicons name={cfg.icon} size={13} color={cfg.color} />
+              <Text style={[styles.statutText, { color: cfg.color }]}>{cfg.label}</Text>
+            </View>
           </View>
         </View>
 
@@ -97,7 +130,6 @@ export default function CommandesScreen() {
           <Text style={styles.totalVal}>{item.prix_commande} Fcfa</Text>
         </View>
 
-        {/* Note admin si présente */}
         {item.note_admin && (
           <View style={styles.noteRow}>
             <Ionicons name="information-circle-outline" size={14} color="#888" />
@@ -108,14 +140,22 @@ export default function CommandesScreen() {
     );
   };
 
-  // Séparer par statut pour l'affichage
-  const actives = commandes.filter(c => ['en_attente', 'confirmee', 'en_livraison'].includes(c.statut || 'en_attente'));
-  const terminees = commandes.filter(c => ['livree', 'annulee'].includes(c.statut || ''));
+  // ── Séparation en cours / historique ──────────────────────
+  const enCours   = commandes.filter(c => estEnCours(c));
+  const historique = commandes.filter(c => !estEnCours(c));
+
+  // Construire la liste avec headers
+  const listData = [
+    ...(enCours.length > 0 ? [{ type: 'header', title: `En cours (${enCours.length})`, key: 'h1' }] : []),
+    ...enCours.map(c => ({ ...c, type: 'item', key: `c_${c.id_commande}` })),
+    ...(historique.length > 0 ? [{ type: 'header', title: `Historique (${historique.length})`, key: 'h2' }] : []),
+    ...historique.map(c => ({ ...c, type: 'item', key: `c_${c.id_commande}` })),
+  ];
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
-      <StatusBar barStyle="light-content" backgroundColor="#FF6B35" />
-      <View style={styles.containt}>
+      <StatusBar barStyle="light-content" backgroundColor="#f8f8f8" />
+      <View style={styles.containt}> 
       <View style={styles.header}>
         <Text style={styles.headerTitle}>Mes Commandes</Text>
         <TouchableOpacity onPress={() => { setLoading(true); fetchCommandes(); }} style={styles.refreshBtn}>
@@ -136,12 +176,7 @@ export default function CommandesScreen() {
         </View>
       ) : (
         <FlatList
-          data={[
-            ...(actives.length > 0 ? [{ type: 'header', title: `En cours (${actives.length})`, key: 'h1' }] : []),
-            ...actives.map(c => ({ ...c, type: 'item', key: `c_${c.id_commande}` })),
-            ...(terminees.length > 0 ? [{ type: 'header', title: `Historique (${terminees.length})`, key: 'h2' }] : []),
-            ...terminees.map(c => ({ ...c, type: 'item', key: `c_${c.id_commande}` })),
-          ]}
+          data={listData}
           keyExtractor={item => item.key || item.id_commande?.toString()}
           renderItem={({ item }) => {
             if (item.type === 'header') {
@@ -163,7 +198,7 @@ export default function CommandesScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#FF6B35' },
-  containt: {flex: 1, backgroundColor: 'white'},
+  containt: {flex: 1, backgroundColor:"#f8f8f8",},
   header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 20, paddingTop: 16, paddingBottom: 12 },
   headerTitle: { fontSize: 26, fontWeight: '800', color: '#1a1a1a' },
   refreshBtn: { padding: 8 },
@@ -179,6 +214,15 @@ const styles = StyleSheet.create({
 
   card: { backgroundColor: '#fff', borderRadius: 18, marginBottom: 14, shadowColor: '#000', shadowOffset: { width: 0, height: 3 }, shadowOpacity: 0.07, shadowRadius: 10, elevation: 3, overflow: 'hidden' },
   cardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 16, paddingTop: 14, paddingBottom: 10 },
+  cardHeaderRight: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  cmdIdWrap: { backgroundColor: 'white', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 8 },
+
+
+  typeBadge: { flexDirection: 'row', alignItems: 'center', gap: 3, borderRadius: 20, paddingHorizontal: 7, paddingVertical: 3 },
+  typeBadgeLivraison: { backgroundColor: '#9C27B015' },
+  typeBadgeRetrait: { backgroundColor: '#4CAF5015' },
+  typeBadgeText: { fontSize: 10, fontWeight: '700' },
+
   statutBadge: { flexDirection: 'row', alignItems: 'center', gap: 5, borderRadius: 20, paddingHorizontal: 10, paddingVertical: 4 },
   statutText: { fontSize: 12, fontWeight: '700' },
 

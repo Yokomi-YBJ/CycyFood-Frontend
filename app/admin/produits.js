@@ -297,7 +297,7 @@ export default function AdminProduits() {
                     </>
                 }
               </TouchableOpacity>
-              <View style={{ height: 30 }} />
+              <View style={{ height: 80 }} />
             </ScrollView>
           </View>
         </View>
