@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "734887030399",
+    "project_id": "cycy-food",
+    "storage_bucket": "cycy-food.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:734887030399:android:60839c77b08c87357b194a",
+        "android_client_info": {
+          "package_name": "com.cycyfood.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDrRB1-ypnI_abnlzai7_BNDiFe6nTeUdA"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

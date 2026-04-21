@@ -1,6 +1,6 @@
 // constants/api.js
 // ⚠️ Remplace par l'URL de ton backend Railway en production
-export const API_BASE_URL = 'https://cycyfood-backend.onrender.com/api';
+export const API_BASE_URL = 'http://192.168.0.117:3000/api';
 
 export const ENDPOINTS = {
   // Auth
