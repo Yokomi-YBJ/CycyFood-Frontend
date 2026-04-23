@@ -8,7 +8,7 @@ import { Ionicons } from '@expo/vector-icons';
 const SECTIONS = [
   {
     titre: '1. Objet et champ d\'application',
-    contenu: `Les présentes Conditions Générales d'Utilisation (ci-après « CGU ») régissent l'accès et l'utilisation de l'application mobile Cycy-Food (ci-après « l'Application »), éditée et exploitée par Cycy-Food, service de restauration rapide basé à Ngaoundéré, Région de l'Adamaoua, Cameroun.
+    contenu: `Les présentes Conditions Générales d'Utilisation (ci-après « CGU ») régissent l'accès et l'utilisation de l'application mobile LaTchop (ci-après « l'Application »), éditée et exploitée par LaTchop, service de restauration rapide basé à Ngaoundéré, Région de l'Adamaoua, Cameroun.
 
 Toute utilisation de l'Application implique l'acceptation pleine et entière des présentes CGU. Si vous n'acceptez pas ces conditions, vous devez cesser immédiatement d'utiliser l'Application.
 
@@ -16,7 +16,7 @@ Les CGU peuvent être modifiées à tout moment. L'utilisateur sera informé de 
   },
   {
     titre: '2. Accès au service',
-    contenu: `L'Application est accessible gratuitement à tout utilisateur disposant d'un accès à Internet et d'un appareil compatible. Cycy-Food ne saurait être tenu responsable des frais de connexion à Internet.
+    contenu: `L'Application est accessible gratuitement à tout utilisateur disposant d'un accès à Internet et d'un appareil compatible. LaTchop ne saurait être tenu responsable des frais de connexion à Internet.
 
 Pour accéder à l'ensemble des fonctionnalités, l'utilisateur doit créer un compte en fournissant des informations exactes, complètes et à jour. L'utilisateur s'engage à maintenir la confidentialité de ses identifiants de connexion.
 
@@ -32,7 +32,7 @@ L'Application est réservée aux personnes physiques capables de contracter. Les
 • Garder votre mot de passe confidentiel et sécurisé ;
 • Nous notifier immédiatement en cas d'utilisation non autorisée de votre compte.
 
-Cycy-Food se réserve le droit de suspendre ou supprimer tout compte en cas de violation de ces obligations ou des présentes CGU.`,
+LaTchop se réserve le droit de suspendre ou supprimer tout compte en cas de violation de ces obligations ou des présentes CGU.`,
   },
   {
     titre: '4. Commandes et paiements',
@@ -40,7 +40,7 @@ Cycy-Food se réserve le droit de suspendre ou supprimer tout compte en cas de v
 
 Les prix affichés sont exprimés en Francs CFA (XAF) et sont susceptibles d'être modifiés sans préavis. Le prix applicable est celui affiché au moment de la validation de la commande.
 
-En cas d'indisponibilité d'un produit après validation de la commande, Cycy-Food s'engage à en informer l'utilisateur dans les meilleurs délais.
+En cas d'indisponibilité d'un produit après validation de la commande, LaTchop s'engage à en informer l'utilisateur dans les meilleurs délais.
 
 Les frais de livraison, lorsqu'applicable, sont clairement indiqués avant la validation finale de la commande.`,
   },
@@ -48,7 +48,7 @@ Les frais de livraison, lorsqu'applicable, sont clairement indiqués avant la va
     titre: '5. Livraison',
     contenu: `Les délais de livraison sont indiqués à titre indicatif et peuvent varier en fonction des conditions climatiques, de la disponibilité des livreurs et de la distance.
 
-La livraison est effectuée à l'adresse indiquée lors de la commande. En cas d'absence à l'adresse de livraison, Cycy-Food décline toute responsabilité pour les retards qui en découleraient.
+La livraison est effectuée à l'adresse indiquée lors de la commande. En cas d'absence à l'adresse de livraison, LaTchop décline toute responsabilité pour les retards qui en découleraient.
 
 Cycy-Food limite ses services de livraison aux quartiers desservis de Ngaoundéré (arrondissements 1, 2 et 3).`,
   },

@@ -33,8 +33,8 @@
         <action android:name="android.intent.action.VIEW"/>
         <category android:name="android.intent.category.DEFAULT"/>
         <category android:name="android.intent.category.BROWSABLE"/>
-        <data android:scheme="cycyfood"/>
-        <data android:scheme="exp+cycy-food"/>
+        <data android:scheme="latchop"/>
+        <data android:scheme="exp+latchop"/>
       </intent-filter>
     </activity>
   </application>

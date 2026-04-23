@@ -1,27 +1,27 @@
 {
   "expo": {
-    "name": "Cycy Food",
-    "slug": "cycy-food",
+    "name": "LaTchop",
+    "slug": "latchop",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/logo.jpg",
+    "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
     "newArchEnabled": true,
     "splash": {
       "image": "./assets/splash.png",
       "resizeMode": "cover",
-      "backgroundColor": "#FF6B35"
+      "backgroundColor": "#C04B1E"
     },
     "notification": {
-      "icon": "./assets/logo.jpg",
-      "color": "#FF6B35",
+      "icon": "./assets/notification-icon.png",
+      "color": "#C04B1E",
       "androidMode": "default",
-      "androidCollapsedTitle": "Cycy Food"
+      "androidCollapsedTitle": "LaTchop"
     },
     "android": {
       "adaptiveIcon": {
-        "foregroundImage": "./assets/adaptive-icon.jpg",
-        "backgroundColor": "#FF6B35"
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#C04B1E"
       },
       "package": "com.cycyfood.app",
       "permissions": [
@@ -47,19 +47,19 @@
       [
         "expo-notifications",
         {
-          "icon": "./assets/logo.jpg",
-          "color": "#FF6B35",
+          "icon": "./assets/notification-icon.png",
+          "color": "#C04B1E",
           "sounds": []
         }
       ],
       [
         "expo-image-picker",
         {
-          "photosPermission": "Cycy Food a besoin d'accéder à vos photos pour changer les images de produits."
+          "photosPermission": "LaTchop a besoin d'accéder à vos photos pour changer les images de produits."
         }
       ]
     ],
-    "scheme": "cycyfood",
+    "scheme": "latchop",
     "experiments": {
       "typedRoutes": true
     },

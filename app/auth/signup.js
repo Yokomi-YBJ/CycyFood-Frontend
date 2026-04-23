@@ -224,7 +224,7 @@ export default function SignupScreen() {
             <View style={styles.logoCircle}>
               <Image source={require('../../assets/logo.jpg')} style={styles.logoImg} />
             </View>
-            <Text style={styles.brandName}>Cycy-Food</Text>
+            <Text style={styles.brandName}>LaTchop</Text>
           </View>
 
           {/* Barre de progression */}
@@ -396,7 +396,7 @@ export default function SignupScreen() {
                         >
                           politique de confidentialité
                         </Text>
-                        {' '}de Cycy-Food.
+                        {' '}de LaTchop.
                       </Text>
                     </View>
                   </TouchableOpacity>

@@ -57,7 +57,7 @@ function SplashLoading() {
         <Image source={require('../assets/logo.jpg')} style={s.logo} />
       </Animated.View>
       <Animated.View style={[s.brandWrap, { opacity: fadeAnim }]}>
-        <Text style={s.brand}>Cycy-Food</Text>
+        <Text style={s.brand}>LaTchop</Text>
         <Text style={s.tagline}>Local · Rapide · Délicieux</Text>
       </Animated.View>
       <View style={s.dotsRow}>

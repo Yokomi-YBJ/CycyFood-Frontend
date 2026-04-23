@@ -60,7 +60,7 @@ export default function LoginScreen() {
             <View style={styles.logoCircle}>
               <Image source={require('../../assets/logo.jpg')} style={styles.logoImg} />
             </View>
-            <Text style={styles.brandName}>Cycy-Food</Text>
+            <Text style={styles.brandName}>LaTchop</Text>
             <Text style={styles.tagline}>Local • Rapide • Délicieux</Text>
           </View>
 

@@ -31,7 +31,7 @@ extensions.configure(com.facebook.react.ReactSettingsExtension) { ex ->
 }
 expoAutolinking.useExpoModules()
 
-rootProject.name = 'Cycy Food'
+rootProject.name = 'LaTchop'
 
 expoAutolinking.useExpoVersionCatalog()
 
