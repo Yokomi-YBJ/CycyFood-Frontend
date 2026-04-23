@@ -86,7 +86,7 @@ export default function HomeScreen() {
             </View>
           </View>
           <View style={styles.heroRight}>
-            <Image source={require('../../assets/logo.jpg')} style={styles.heroLogo} />
+            <Image source={require('../../assets/logo.png')} style={styles.heroLogo} />
          
           </View>
         </View>

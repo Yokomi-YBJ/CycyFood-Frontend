@@ -54,7 +54,7 @@ function SplashLoading() {
     <View style={s.splash}>
       <StatusBar style="light" />
       <Animated.View style={[s.logoWrap, { opacity: fadeAnim, transform: [{ scale: scaleAnim }] }]}>
-        <Image source={require('../assets/logo.jpg')} style={s.logo} />
+        <Image source={require('../assets/logo.png')} style={s.logo} />
       </Animated.View>
       <Animated.View style={[s.brandWrap, { opacity: fadeAnim }]}>
         <Text style={s.brand}>LaTchop</Text>

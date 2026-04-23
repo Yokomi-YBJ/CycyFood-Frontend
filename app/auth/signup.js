@@ -222,7 +222,7 @@ export default function SignupScreen() {
           {/* Logo */}
           <View style={styles.header}>
             <View style={styles.logoCircle}>
-              <Image source={require('../../assets/logo.jpg')} style={styles.logoImg} />
+              <Image source={require('../../assets/logo.png')} style={styles.logoImg} />
             </View>
             <Text style={styles.brandName}>LaTchop</Text>
           </View>
