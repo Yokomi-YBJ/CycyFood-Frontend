@@ -28,14 +28,12 @@ const STATUT_CFG = {
 };
 
 // ── Transitions selon le type de commande ──────────────────
-// Sans livraison : en_attente → confirmee → (fin)
-// Avec livraison : en_attente → en_livraison → livree → (fin)
 const getTransitions = (statut, avec_livraison) => {
   if (avec_livraison) {
     return {
       en_attente:   ['en_livraison', 'annulee'],
       en_livraison: ['livree', 'annulee'],
-      confirmee:    ['en_livraison', 'annulee'], // sécurité
+      confirmee:    ['en_livraison', 'annulee'],
       livree:       [],
       annulee:      [],
     }[statut] || [];
@@ -126,7 +124,6 @@ export default function AdminCommandes() {
         <View style={styles.cmdHeader}>
           <Text style={styles.cmdId}>Commande #{item.id_commande}</Text>
           <View style={styles.cmdHeaderRight}>
-            {/* Badge type livraison */}
             <View style={[styles.typeBadge, aLivraison ? styles.typeBadgeLivraison : styles.typeBadgeRetrait]}>
               <Ionicons
                 name={aLivraison ? 'bicycle-outline' : 'storefront-outline'}
@@ -183,9 +180,8 @@ export default function AdminCommandes() {
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
-      <StatusBar barStyle="dark-content" backgroundColor="#f4f4f8" />
+      <StatusBar barStyle="light-content" backgroundColor="#f4f4f8" />
       <View style={styles.containt}>
-      {/* Modal détail commande */}
       <Modal visible={!!cmdSelectionnee} transparent animationType="slide">
         <View style={styles.modalOverlay}>
           <View style={styles.modalContainer}>
@@ -211,8 +207,6 @@ export default function AdminCommandes() {
                   </View>
 
                   <ScrollView style={styles.modalScroll}>
-
-                    {/* Client */}
                     <View style={styles.modalSection}>
                       <Text style={styles.modalSectionTitle}>Client</Text>
                       <View style={styles.modalInfoCard}>
@@ -235,7 +229,6 @@ export default function AdminCommandes() {
                       </TouchableOpacity>
                     </View>
 
-                    {/* Produits */}
                     <View style={styles.modalSection}>
                       <Text style={styles.modalSectionTitle}>Produits</Text>
                       <View style={styles.modalInfoCard}>
@@ -244,7 +237,6 @@ export default function AdminCommandes() {
                       <Text style={styles.modalTotal}>Total : {cmdSelectionnee.prix_commande} Fcfa</Text>
                     </View>
 
-                    {/* Note admin */}
                     <View style={styles.modalSection}>
                       <Text style={styles.modalSectionTitle}>Note interne (optionnel)</Text>
                       <View style={styles.noteInput}>
@@ -261,7 +253,6 @@ export default function AdminCommandes() {
                       </View>
                     </View>
 
-                    {/* Actions statut */}
                     {transitions.length > 0 && (
                       <View style={styles.modalSection}>
                         <Text style={styles.modalSectionTitle}>Changer le statut</Text>
@@ -319,7 +310,6 @@ export default function AdminCommandes() {
         <View style={{height: 40}}/>
       </Modal>
 
-      {/* Header */}
       <View style={styles.header}>
         <Text style={styles.headerTitle}>Commandes</Text>
         <TouchableOpacity onPress={() => { setLoading(true); fetchCommandes(); }} style={styles.refreshBtn}>
@@ -327,8 +317,13 @@ export default function AdminCommandes() {
         </TouchableOpacity>
       </View>
 
-      {/* Filtres */}
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.filtres} contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 8 }}>
+      {/* Filtres corrigés */}
+      <ScrollView 
+        horizontal 
+        showsHorizontalScrollIndicator={false} 
+        style={styles.filtres} 
+        contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 8, alignItems: 'center' }}
+      >
         {STATUTS.map(s => (
           <TouchableOpacity
             key={String(s.key)}
@@ -369,10 +364,22 @@ const styles = StyleSheet.create({
   headerTitle: { fontSize: 24, fontWeight: '800', color: '#1a1a1a' },
   refreshBtn: { padding: 6 },
   filtres: { marginBottom: 4 },
-  filtrePill: { borderWidth: 1.5, borderColor: '#ddd', borderRadius: 20, paddingHorizontal: 14, paddingVertical: 7, marginRight: 8, backgroundColor: '#fff' },
+  
+  // Style corrigé pour la stabilité visuelle
+  filtrePill: { 
+    borderWidth: 1.5, 
+    borderColor: '#ddd', 
+    borderRadius: 20, 
+    paddingHorizontal: 14, 
+    paddingVertical: 7, 
+    marginRight: 8, 
+    backgroundColor: '#fff',
+    alignSelf: 'center',
+    justifyContent: 'center',
+  },
+  
   filtrePillText: { fontSize: 12, fontWeight: '700', color: '#555' },
   list: { paddingHorizontal: 16, paddingBottom: 20 },
-
   cmdCard: { backgroundColor: '#fff', borderRadius: 16, padding: 16, marginBottom: 12, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.06, shadowRadius: 8, elevation: 2 },
   cmdHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12 },
   cmdHeaderRight: { flexDirection: 'row', alignItems: 'center', gap: 6 },
@@ -383,7 +390,6 @@ const styles = StyleSheet.create({
   typeBadgeText: { fontSize: 10, fontWeight: '700' },
   statutPill: { flexDirection: 'row', alignItems: 'center', gap: 4, borderRadius: 20, paddingHorizontal: 10, paddingVertical: 4 },
   statutText: { fontSize: 11, fontWeight: '700' },
-
   clientRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 10 },
   clientAvatar: { width: 38, height: 38, borderRadius: 19, backgroundColor: '#FF6B3520', alignItems: 'center', justifyContent: 'center' },
   clientAvatarText: { fontSize: 13, fontWeight: '800', color: '#FF6B35' },
@@ -391,21 +397,16 @@ const styles = StyleSheet.create({
   clientNom: { fontSize: 14, fontWeight: '700', color: '#1a1a1a' },
   clientAdresse: { fontSize: 12, color: '#aaa', marginTop: 1 },
   callBtn: { width: 38, height: 38, borderRadius: 19, backgroundColor: '#4CAF50', alignItems: 'center', justifyContent: 'center' },
-
   produitsRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 6, marginBottom: 10, paddingTop: 10, borderTopWidth: 1, borderTopColor: '#f5f5f5' },
   produitsText: { flex: 1, fontSize: 12, color: '#666', lineHeight: 18 },
-
   cmdFooter: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   cmdDate: { fontSize: 11, color: '#aaa' },
   cmdPrix: { fontSize: 15, fontWeight: '900', color: '#FF6B35' },
-
   noteRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 8, paddingTop: 8, borderTopWidth: 1, borderTopColor: '#f5f5f5' },
   noteText: { fontSize: 11, color: '#888', fontStyle: 'italic', flex: 1 },
-
   emptyContainer: { alignItems: 'center', marginTop: 60 },
   emptyEmoji: { fontSize: 56, marginBottom: 12 },
   emptyText: { fontSize: 16, color: '#aaa', fontWeight: '600' },
-
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
   modalContainer: { backgroundColor: '#fff', borderTopLeftRadius: 24, borderTopRightRadius: 24, maxHeight: '90%' },
   modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', padding: 20, borderBottomWidth: 1, borderBottomColor: '#f0f0f0' },
