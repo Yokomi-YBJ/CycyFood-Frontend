@@ -52,7 +52,8 @@
         {
           "photosPermission": "LaTchop a besoin d'accéder à vos photos pour changer les images de produits."
         }
-      ]
+      ],
+      "expo-font"
     ],
     "scheme": "latchop",
     "experiments": {
