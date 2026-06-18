@@ -2,19 +2,43 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import {
   View, Text, StyleSheet, FlatList, TouchableOpacity,
-  ActivityIndicator, RefreshControl, StatusBar, Linking, Alert,
+  ActivityIndicator, RefreshControl, StatusBar, Linking,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../context/AuthContext';
+import { useAlert } from '../../context/AlertContext';
+import { Skeleton } from '../../components/Skeleton';
 import { ENDPOINTS } from '../../constants/api';
+import { COLORS, SPACING, RADIUS, SHADOWS } from '../../constants/theme';
+
+const ClientsSkeleton = () => (
+  <View style={{ padding: SPACING.md }}>
+    {[1, 2, 3, 4].map(i => (
+      <View key={i} style={styles.clientCard}>
+        <View style={styles.clientLeft}>
+          <Skeleton width={50} height={50} style={{ borderRadius: RADIUS.md }} />
+        </View>
+        <View style={{ flex: 1, gap: 6 }}>
+          <Skeleton width="60%" height={16} />
+          <Skeleton width="40%" height={12} />
+          <View style={{ flexDirection: 'row', gap: 8, marginTop: 4 }}>
+            <Skeleton width={80} height={20} style={{ borderRadius: RADIUS.full }} />
+            <Skeleton width={100} height={20} style={{ borderRadius: RADIUS.full }} />
+          </View>
+        </View>
+      </View>
+    ))}
+  </View>
+);
 
 export default function AdminClients() {
   const { token } = useAuth();
+  const { showAlert } = useAlert();
   const [clients, setClients] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [tri, setTri] = useState('depense'); // 'depense' | 'commandes' | 'nom'
+  const [tri, setTri] = useState('depense');
 
   const fetchClients = async () => {
     try {
@@ -24,7 +48,7 @@ export default function AdminClients() {
       const data = await res.json();
       if (data.status === 'success') setClients(data.clients);
     } catch (e) {
-      Alert.alert('Problème de connexion', 'Impossible de charger la liste des clients.');
+      showAlert({ title: 'Erreur', message: 'Impossible de charger la liste des clients.', type: 'error' });
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -42,7 +66,9 @@ export default function AdminClients() {
   });
 
   const appeler = (tel) => {
-    Linking.openURL(`tel:${tel}`).catch(() => Alert.alert('Erreur', 'Impossible d\'ouvrir le téléphone.'));
+    Linking.openURL(`tel:${tel}`).catch(() => 
+      showAlert({ title: 'Erreur', message: 'Impossible d\'ouvrir le téléphone.', type: 'error' })
+    );
   };
 
   const whatsapp = (tel) => {
@@ -58,38 +84,36 @@ export default function AdminClients() {
     return (
       <View style={styles.clientCard}>
         <View style={styles.clientLeft}>
-          <View style={[styles.avatar, isTop && { backgroundColor: '#FF6B35' }]}>
-            <Text style={styles.avatarText}>{initiales}</Text>
+          <View style={[styles.avatar, isTop && { backgroundColor: COLORS.primary }]}>
+            <Text style={[styles.avatarText, isTop && { color: '#fff' }]}>{initiales}</Text>
           </View>
-          {isTop && tri === 'depense' && (
-            <Text style={styles.medaille}>{medailles[index]}</Text>
-          )}
+          {isTop && tri === 'depense' && <Text style={styles.medaille}>{medailles[index]}</Text>}
         </View>
 
         <View style={styles.clientInfo}>
           <Text style={styles.clientNom}>{item.nom_user} {item.prenom_user}</Text>
           <View style={styles.clientMeta}>
-            <Ionicons name="location-outline" size={11} color="#aaa" />
+            <Ionicons name="location-outline" size={12} color={COLORS.text.secondary} />
             <Text style={styles.clientAdresse}>{item.adresse_user}</Text>
           </View>
           <View style={styles.clientStats}>
-            <View style={styles.statPill}>
-              <Ionicons name="receipt-outline" size={10} color="#2196F3" />
-              <Text style={[styles.statPillText, { color: '#2196F3' }]}>{item.nb_commandes} commande(s)</Text>
+            <View style={[styles.statPill, { backgroundColor: '#2196F315' }]}>
+              <Ionicons name="receipt-outline" size={12} color="#2196F3" />
+              <Text style={[styles.statPillText, { color: '#2196F3' }]}>{item.nb_commandes} cmd(s)</Text>
             </View>
-            <View style={[styles.statPill, { backgroundColor: '#FF6B3510' }]}>
-              <Ionicons name="cash-outline" size={10} color="#FF6B35" />
-              <Text style={[styles.statPillText, { color: '#FF6B35' }]}>{item.total_depense.toLocaleString()} Fcfa</Text>
+            <View style={[styles.statPill, { backgroundColor: COLORS.primary + '15' }]}>
+              <Ionicons name="cash-outline" size={12} color={COLORS.primary} />
+              <Text style={[styles.statPillText, { color: COLORS.primary }]}>{item.total_depense.toLocaleString()} Fcfa</Text>
             </View>
           </View>
         </View>
 
         <View style={styles.clientActions}>
           <TouchableOpacity style={styles.contactBtn} onPress={() => appeler(item.telephone)}>
-            <Ionicons name="call" size={16} color="#4CAF50" />
+            <Ionicons name="call" size={18} color={COLORS.success} />
           </TouchableOpacity>
-          <TouchableOpacity style={[styles.contactBtn, { backgroundColor: '#25D36618' }]} onPress={() => whatsapp(item.telephone)}>
-            <Ionicons name="logo-whatsapp" size={16} color="#25D366" />
+          <TouchableOpacity style={[styles.contactBtn, { backgroundColor: '#25D36615' }]} onPress={() => whatsapp(item.telephone)}>
+            <Ionicons name="logo-whatsapp" size={18} color="#25D366" />
           </TouchableOpacity>
         </View>
       </View>
@@ -98,14 +122,12 @@ export default function AdminClients() {
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
-      <StatusBar barStyle="light-content" backgroundColor="#FF6B35" />
-    <View style={styles.containt}>
+      <StatusBar barStyle="light-content" backgroundColor={COLORS.primary} />
       <View style={styles.header}>
         <Text style={styles.headerTitle}>Clients</Text>
         <Text style={styles.headerCount}>{clients.length} inscrits</Text>
       </View>
 
-      {/* Tri */}
       <View style={styles.triRow}>
         {[
           { key: 'depense',   label: 'Top dépenses' },
@@ -123,14 +145,14 @@ export default function AdminClients() {
       </View>
 
       {loading
-        ? <ActivityIndicator size="large" color="#FF6B35" style={{ marginTop: 40 }} />
+        ? <ClientsSkeleton />
         : <FlatList
             data={clientsTries}
             keyExtractor={item => item.id_user.toString()}
             renderItem={renderClient}
             contentContainerStyle={styles.list}
             showsVerticalScrollIndicator={false}
-            refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={['#FF6B35']} />}
+            refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[COLORS.primary]} />}
             ListEmptyComponent={
               <View style={styles.emptyContainer}>
                 <Text style={styles.emptyEmoji}>👥</Text>
@@ -139,41 +161,39 @@ export default function AdminClients() {
             }
           />
       }
-      </View>
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#FF6B35' },
-  containt: {flex: 1, backgroundColor: 'white'},
-  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 20, paddingVertical: 14 },
-  headerTitle: { fontSize: 24, fontWeight: '800', color: '#1a1a1a' },
-  headerCount: { fontSize: 14, color: '#aaa', fontWeight: '600' },
+  container: { flex: 1, backgroundColor: COLORS.background },
+  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: SPACING.md, backgroundColor: COLORS.surface, borderBottomWidth: 1, borderBottomColor: COLORS.border },
+  headerTitle: { fontSize: 24, fontWeight: '800', color: COLORS.text.primary },
+  headerCount: { fontSize: 14, color: COLORS.text.secondary, fontWeight: '600' },
 
-  triRow: { flexDirection: 'row', paddingHorizontal: 16, gap: 8, marginBottom: 12 },
-  triPill: { borderWidth: 1.5, borderColor: '#ddd', borderRadius: 20, paddingHorizontal: 12, paddingVertical: 6, backgroundColor: '#fff' },
-  triPillActive: { backgroundColor: '#FF6B35', borderColor: '#FF6B35' },
-  triPillText: { fontSize: 12, fontWeight: '700', color: '#555' },
+  triRow: { flexDirection: 'row', padding: SPACING.md, gap: SPACING.sm },
+  triPill: { borderWidth: 1, borderColor: COLORS.border, borderRadius: RADIUS.full, paddingHorizontal: 14, paddingVertical: 8, backgroundColor: COLORS.surface },
+  triPillActive: { backgroundColor: COLORS.primary, borderColor: COLORS.primary },
+  triPillText: { fontSize: 13, fontWeight: '700', color: COLORS.text.secondary },
   triPillTextActive: { color: '#fff' },
 
-  list: { paddingHorizontal: 16, paddingBottom: 20 },
-  clientCard: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#fff', borderRadius: 14, padding: 14, marginBottom: 10, gap: 12, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.05, shadowRadius: 6, elevation: 2 },
+  list: { paddingHorizontal: SPACING.md, paddingBottom: SPACING.xl },
+  clientCard: { flexDirection: 'row', alignItems: 'center', backgroundColor: COLORS.surface, borderRadius: RADIUS.lg, padding: SPACING.md, marginBottom: SPACING.md, gap: SPACING.md, ...SHADOWS.light },
   clientLeft: { position: 'relative' },
-  avatar: { width: 46, height: 46, borderRadius: 23, backgroundColor: '#FF6B3520', alignItems: 'center', justifyContent: 'center' },
-  avatarText: { fontSize: 16, fontWeight: '900', color: '#fff' },
-  medaille: { position: 'absolute', top: -6, right: -6, fontSize: 14 },
+  avatar: { width: 50, height: 50, borderRadius: RADIUS.md, backgroundColor: COLORS.primary + '15', alignItems: 'center', justifyContent: 'center' },
+  avatarText: { fontSize: 18, fontWeight: '900', color: COLORS.primary },
+  medaille: { position: 'absolute', top: -8, right: -8, fontSize: 16 },
   clientInfo: { flex: 1 },
-  clientNom: { fontSize: 15, fontWeight: '800', color: '#1a1a1a', marginBottom: 3 },
-  clientMeta: { flexDirection: 'row', alignItems: 'center', gap: 3, marginBottom: 6 },
-  clientAdresse: { fontSize: 11, color: '#aaa' },
-  clientStats: { flexDirection: 'row', gap: 6 },
-  statPill: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: '#2196F310', borderRadius: 20, paddingHorizontal: 8, paddingVertical: 3 },
-  statPillText: { fontSize: 10, fontWeight: '700' },
-  clientActions: { gap: 8 },
-  contactBtn: { width: 34, height: 34, borderRadius: 17, backgroundColor: '#4CAF5018', alignItems: 'center', justifyContent: 'center' },
+  clientNom: { fontSize: 16, fontWeight: '800', color: COLORS.text.primary, marginBottom: 4 },
+  clientMeta: { flexDirection: 'row', alignItems: 'center', gap: 4, marginBottom: 8 },
+  clientAdresse: { fontSize: 12, color: COLORS.text.secondary },
+  clientStats: { flexDirection: 'row', gap: 8 },
+  statPill: { flexDirection: 'row', alignItems: 'center', gap: 4, borderRadius: RADIUS.full, paddingHorizontal: 10, paddingVertical: 4 },
+  statPillText: { fontSize: 11, fontWeight: '700' },
+  clientActions: { gap: SPACING.sm },
+  contactBtn: { width: 40, height: 40, borderRadius: RADIUS.md, backgroundColor: COLORS.background, alignItems: 'center', justifyContent: 'center' },
 
-  emptyContainer: { alignItems: 'center', marginTop: 60 },
-  emptyEmoji: { fontSize: 56, marginBottom: 12 },
-  emptyText: { fontSize: 15, color: '#aaa', fontWeight: '600' },
+  emptyContainer: { alignItems: 'center', marginTop: 80 },
+  emptyEmoji: { fontSize: 60, marginBottom: 12 },
+  emptyText: { fontSize: 16, color: COLORS.text.secondary, fontWeight: '600' },
 });

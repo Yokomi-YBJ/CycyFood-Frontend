@@ -5,27 +5,40 @@ import { Ionicons } from '@expo/vector-icons';
 import { useCart } from '../../context/CartContext';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Notifications from 'expo-notifications';
-
+import { COLORS } from '../../constants/theme';
 
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
-    shouldShowAlert: true, // Force la bannière même quand l'app est ouverte
-    shouldPlaySound: true, // Joue le son
+    shouldShowAlert: true,
+    shouldPlaySound: true,
     shouldSetBadge: false,
   }),
 });
 
+function TabIcon({ name, nameActive, color, size, focused }) {
+  return (
+    <Ionicons
+      name={focused ? nameActive : name}
+      size={size}
+      color={color}
+    />
+  );
+}
 
-function CartIcon({ color, size }) {
-
- 
+function CartIcon({ color, size, focused }) {
   const { totalArticles } = useCart();
   return (
     <View>
-      <Ionicons name="bag-outline" size={size} color={color} />
+      <Ionicons
+        name={focused ? 'bag' : 'bag-outline'}
+        size={size}
+        color={color}
+      />
       {totalArticles > 0 && (
         <View style={styles.badge}>
-          <Text style={styles.badgeText}>{totalArticles}</Text>
+          <Text style={styles.badgeText}>
+            {totalArticles > 99 ? '99+' : totalArticles}
+          </Text>
         </View>
       )}
     </View>
@@ -35,37 +48,48 @@ function CartIcon({ color, size }) {
 export default function TabsLayout() {
   const insets = useSafeAreaInsets();
   const pathname = usePathname();
-  const BASE_HEIGHT = 60;
-  
-  // Masquer la tabBar si on est sur une page secondaire du profil
-  const hideTabBar = pathname.startsWith('/profil') && pathname !== '/profil';
-  
+
+  // Masquer la tabBar sur les pages secondaires du profil
+  const hideTabBar =
+    pathname.startsWith('/profil') && pathname !== '/profil' ||
+    pathname.includes('/modifier') ||
+    pathname.includes('/cgu') ||
+    pathname.includes('/confidentialite');
+
+  const BASE_HEIGHT = 62;
+
   return (
     <Tabs
       screenOptions={{
         headerShown: false,
-        tabBarActiveTintColor: '#FF6B35',
-        tabBarInactiveTintColor: '#aaa',
+        tabBarActiveTintColor: COLORS.primary,
+        tabBarInactiveTintColor: '#B0B0B0',
         tabBarStyle: {
-          backgroundColor: '#fff',
+          backgroundColor: '#FFFFFF',
           borderTopWidth: 0,
           shadowColor: '#000',
-          shadowOffset: { width: 0, height: -4 },
-          shadowOpacity: 0.08,
-          shadowRadius: 12,
-          height: BASE_HEIGHT + insets.bottom, 
-          paddingBottom: insets.bottom > 0 ? insets.bottom : 0,
+          shadowOffset: { width: 0, height: -6 },
+          shadowOpacity: 0.07,
+          shadowRadius: 16,
+          elevation: 20,
+          height: BASE_HEIGHT + insets.bottom,
+          paddingBottom: insets.bottom > 0 ? insets.bottom : 6,
+          paddingTop: 6,
           display: hideTabBar ? 'none' : 'flex',
         },
-        tabBarLabelStyle: { fontSize: 11, fontWeight: '600' },
+        tabBarLabelStyle: {
+          fontSize: 10,
+          fontWeight: '700',
+          marginTop: 2,
+        },
       }}
     >
       <Tabs.Screen
         name="index"
         options={{
           title: 'Accueil',
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="home-outline" size={size} color={color} />
+          tabBarIcon: ({ color, size, focused }) => (
+            <TabIcon name="home-outline" nameActive="home" color={color} size={size} focused={focused} />
           ),
         }}
       />
@@ -73,15 +97,17 @@ export default function TabsLayout() {
         name="panier"
         options={{
           title: 'Panier',
-          tabBarIcon: ({ color, size }) => <CartIcon color={color} size={size} />,
+          tabBarIcon: ({ color, size, focused }) => (
+            <CartIcon color={color} size={size} focused={focused} />
+          ),
         }}
       />
       <Tabs.Screen
         name="commandes"
         options={{
           title: 'Commandes',
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="receipt-outline" size={size} color={color} />
+          tabBarIcon: ({ color, size, focused }) => (
+            <TabIcon name="receipt-outline" nameActive="receipt" color={color} size={size} focused={focused} />
           ),
         }}
       />
@@ -89,8 +115,8 @@ export default function TabsLayout() {
         name="profil"
         options={{
           title: 'Profil',
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="person-outline" size={size} color={color} />
+          tabBarIcon: ({ color, size, focused }) => (
+            <TabIcon name="person-outline" nameActive="person" color={color} size={size} focused={focused} />
           ),
         }}
       />
@@ -100,10 +126,23 @@ export default function TabsLayout() {
 
 const styles = StyleSheet.create({
   badge: {
-    position: 'absolute', top: -4, right: -8,
-    backgroundColor: '#FF6B35', borderRadius: 10,
-    minWidth: 18, height: 18, alignItems: 'center', justifyContent: 'center',
+    position: 'absolute',
+    top: -5,
+    right: -9,
+    backgroundColor: COLORS.primary,
+    borderRadius: 10,
+    minWidth: 18,
+    height: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
     paddingHorizontal: 4,
+    borderWidth: 2,
+    borderColor: '#fff',
   },
-  badgeText: { color: '#fff', fontSize: 10, fontWeight: '800' },
+  badgeText: {
+    color: '#fff',
+    fontSize: 9,
+    fontWeight: '900',
+    lineHeight: 12,
+  },
 });

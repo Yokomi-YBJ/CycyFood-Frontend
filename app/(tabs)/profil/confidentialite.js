@@ -9,7 +9,7 @@ const SECTIONS = [
   {
     titre: '1. Responsable du traitement',
     icone: 'business-outline',
-    contenu: `Le responsable du traitement de vos données personnelles est :\n\nCycy-Food\nService de restauration rapide\nNgaoundéré, Région de l'Adamaoua — Cameroun\nContact : +237 691 09 40 48 (WhatsApp)\n\nCycy-Food s'engage à protéger vos données personnelles conformément aux principes du Règlement Général sur la Protection des Données (RGPD) et aux lois applicables au Cameroun.`,
+    contenu: `Le responsable du traitement de vos données personnelles est :\n\nLaTchop\nService de restauration rapide\nNgaoundéré, Région de l'Adamaoua — Cameroun\nContact : +237 691 09 40 48 (WhatsApp)\n\nLaTchop s'engage à protéger vos données personnelles conformément aux principes du Règlement Général sur la Protection des Données (RGPD) et aux lois applicables au Cameroun.`,
   },
   {
     titre: '2. Données collectées',
@@ -29,7 +29,7 @@ const SECTIONS = [
   {
     titre: '5. Durée de conservation',
     icone: 'time-outline',
-    contenu: `Nous conservons vos données personnelles pendant :\n\n• Données de compte actif : toute la durée de votre relation avec Cycy-Food\n• Données de commandes : 5 ans à compter de la commande (obligations légales)\n• Données de connexion : 12 mois maximum\n• Données de compte supprimé : 30 jours puis suppression définitive\n\nAu-delà de ces délais, vos données sont supprimées ou anonymisées de manière irréversible.`,
+    contenu: `Nous conservons vos données personnelles pendant :\n\n• Données de compte actif : toute la durée de votre relation avec LaTchop\n• Données de commandes : 5 ans à compter de la commande (obligations légales)\n• Données de connexion : 12 mois maximum\n• Données de compte supprimé : 30 jours puis suppression définitive\n\nAu-delà de ces délais, vos données sont supprimées ou anonymisées de manière irréversible.`,
   },
   {
     titre: '6. Partage et destinataires',
@@ -44,12 +44,12 @@ const SECTIONS = [
   {
     titre: '8. Sécurité des données',
     icone: 'shield-checkmark-outline',
-    contenu: `Cycy-Food met en œuvre des mesures techniques et organisationnelles appropriées pour protéger vos données contre tout accès non autorisé, divulgation, altération ou destruction :\n\n• Chiffrement des mots de passe (bcrypt)\n• Authentification par token JWT à durée limitée\n• Communications chiffrées (HTTPS)\n• Accès restreint aux données par le personnel autorisé uniquement\n• Revue régulière des pratiques de sécurité\n\nEn cas de violation de données susceptible d'affecter vos droits, vous en serez notifié dans les délais légaux applicables.`,
+    contenu: `LaTchop met en œuvre des mesures techniques et organisationnelles appropriées pour protéger vos données contre tout accès non autorisé, divulgation, altération ou destruction :\n\n• Chiffrement des mots de passe (bcrypt)\n• Authentification par token JWT à durée limitée\n• Communications chiffrées (HTTPS)\n• Accès restreint aux données par le personnel autorisé uniquement\n• Revue régulière des pratiques de sécurité\n\nEn cas de violation de données susceptible d'affecter vos droits, vous en serez notifié dans les délais légaux applicables.`,
   },
   {
     titre: '9. Cookies et traceurs',
     icone: 'eye-outline',
-    contenu: `L'Application mobile Cycy-Food n'utilise pas de cookies au sens traditionnel du terme.\n\nDes données de session sont stockées localement sur votre appareil (token d'authentification sécurisé) pour maintenir votre connexion. Ces données ne sont pas partagées avec des tiers.\n\nAucun outil de tracking publicitaire ou analytique tiers n'est intégré à l'Application.`,
+    contenu: `L'Application mobile LaTchop n'utilise pas de cookies au sens traditionnel du terme.\n\nDes données de session sont stockées localement sur votre appareil (token d'authentification sécurisé) pour maintenir votre connexion. Ces données ne sont pas partagées avec des tiers.\n\nAucun outil de tracking publicitaire ou analytique tiers n'est intégré à l'Application.`,
   },
   {
     titre: '10. Modifications de la politique',
@@ -94,7 +94,7 @@ export default function ConfidentialiteScreen() {
           <View style={styles.engagementCard}>
             <Ionicons name="heart" size={18} color="#FF6B35" style={{ marginTop: 2 }} />
             <Text style={styles.engagementText}>
-              Chez Cycy-Food, la protection de votre vie privée est une priorité. Nous collectons le strict minimum nécessaire pour vous servir et améliorer continuellement votre expérience.
+              Chez LaTchop, la protection de votre vie privée est une priorité. Nous collectons le strict minimum nécessaire pour vous servir et améliorer continuellement votre expérience.
             </Text>
           </View>
 

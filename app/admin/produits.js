@@ -2,21 +2,42 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import {
   View, Text, StyleSheet, FlatList, TouchableOpacity,
-  ActivityIndicator, Alert, RefreshControl, StatusBar,
+  ActivityIndicator, RefreshControl, StatusBar,
   Modal, TextInput, ScrollView, Image, Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { useAuth } from '../../context/AuthContext';
+import { useAlert } from '../../context/AlertContext';
+import { Skeleton } from '../../components/Skeleton';
 import { ENDPOINTS } from '../../constants/api';
+import { COLORS, SPACING, RADIUS, SHADOWS } from '../../constants/theme';
 
 const CATEGORIES = ['Plat', 'Boisson', 'Dessert', 'Entrée', 'Snack', 'Fruit', 'Autre'];
-
 const FORM_VIDE = { nom_produit: '', description: '', Prix: '', stock: '', categorie: 'Plat', disponible: 1 };
+
+const ProduitsSkeleton = () => (
+  <View style={{ padding: SPACING.md }}>
+    {[1, 2, 3, 4].map(i => (
+      <View key={i} style={styles.produitCard}>
+        <Skeleton width={80} height={80} style={{ borderRadius: RADIUS.md }} />
+        <View style={{ flex: 1, paddingHorizontal: SPACING.md, justifyContent: 'center', gap: 6 }}>
+          <Skeleton width="60%" height={16} />
+          <Skeleton width="80%" height={12} />
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 4 }}>
+            <Skeleton width={60} height={14} />
+            <Skeleton width={40} height={12} />
+          </View>
+        </View>
+      </View>
+    ))}
+  </View>
+);
 
 export default function AdminProduits() {
   const { token } = useAuth();
+  const { showAlert } = useAlert();
   const [produits, setProduits] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -24,7 +45,7 @@ export default function AdminProduits() {
   const [modeEdition, setModeEdition] = useState(false);
   const [produitEdite, setProduitEdite] = useState(null);
   const [form, setForm] = useState(FORM_VIDE);
-  const [imageLocale, setImageLocale] = useState(null); // { uri, name, type }
+  const [imageLocale, setImageLocale] = useState(null);
   const [saving, setSaving] = useState(false);
 
   const update = (k, v) => setForm(prev => ({ ...prev, [k]: v }));
@@ -37,7 +58,7 @@ export default function AdminProduits() {
       const data = await res.json();
       if (data.status === 'success') setProduits(data.produits);
     } catch (e) {
-      Alert.alert('Problème de connexion', 'Impossible de charger les produits.');
+      showAlert({ title: 'Erreur', message: 'Impossible de charger les produits.', type: 'error' });
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -73,7 +94,7 @@ export default function AdminProduits() {
   const choisirImage = async () => {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (status !== 'granted') {
-      Alert.alert('Permission refusée', 'Autorisez l\'accès à la galerie dans les paramètres.');
+      showAlert({ title: 'Permission refusée', message: 'Autorisez l\'accès à la galerie.', type: 'error' });
       return;
     }
     const result = await ImagePicker.launchImageLibraryAsync({
@@ -91,10 +112,10 @@ export default function AdminProduits() {
   };
 
   const sauvegarder = async () => {
-    if (!form.nom_produit.trim()) return Alert.alert('Requis', 'Nom du produit obligatoire.');
-    if (!form.description.trim()) return Alert.alert('Requis', 'Description obligatoire.');
-    if (!form.Prix || isNaN(parseInt(form.Prix))) return Alert.alert('Requis', 'Prix invalide.');
-    if (!modeEdition && !imageLocale) return Alert.alert('Requis', 'Veuillez choisir une image.');
+    if (!form.nom_produit.trim()) { showAlert({ title: 'Requis', message: 'Nom du produit obligatoire.', type: 'warning' }); return; }
+    if (!form.description.trim()) { showAlert({ title: 'Requis', message: 'Description obligatoire.', type: 'warning' }); return; }
+    if (!form.Prix || isNaN(parseInt(form.Prix))) { showAlert({ title: 'Requis', message: 'Prix invalide.', type: 'warning' }); return; }
+    if (!modeEdition && !imageLocale) { showAlert({ title: 'Requis', message: 'Veuillez choisir une image.', type: 'warning' }); return; }
 
     setSaving(true);
     try {
@@ -114,13 +135,9 @@ export default function AdminProduits() {
         });
       }
 
-      const url = modeEdition
-        ? `${ENDPOINTS.adminProduits}/${produitEdite.id_produit}`
-        : ENDPOINTS.adminProduits;
-      const method = modeEdition ? 'PUT' : 'POST';
-
+      const url = modeEdition ? `${ENDPOINTS.adminProduits}/${produitEdite.id_produit}` : ENDPOINTS.adminProduits;
       const res = await fetch(url, {
-        method,
+        method: modeEdition ? 'PUT' : 'POST',
         headers: { Authorization: `Bearer ${token}` },
         body: formData,
       });
@@ -129,40 +146,35 @@ export default function AdminProduits() {
       if (data.status === 'success') {
         setModalVisible(false);
         fetchProduits();
-        Alert.alert('✅', modeEdition ? 'Produit modifié !' : 'Produit ajouté !');
+        showAlert({ title: 'Succès', message: modeEdition ? 'Produit modifié !' : 'Produit ajouté !', type: 'success' });
       } else {
-        Alert.alert('Erreur', data.message);
+        showAlert({ title: 'Erreur', message: data.message, type: 'error' });
       }
     } catch (e) {
-      Alert.alert('Problème de connexion', 'Vérifiez la connexion au serveur et réessayez.');
+      showAlert({ title: 'Erreur', message: 'Vérifiez la connexion au serveur.', type: 'error' });
     } finally {
       setSaving(false);
     }
   };
 
   const supprimer = (p) => {
-    Alert.alert(
-      `Supprimer "${p.nom_produit}" ?`,
-      'Cette action est irréversible.',
-      [
-        { text: 'Annuler', style: 'cancel' },
-        {
-          text: 'Supprimer',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              await fetch(`${ENDPOINTS.adminProduits}/${p.id_produit}`, {
-                method: 'DELETE',
-                headers: { Authorization: `Bearer ${token}` },
-              });
-              fetchProduits();
-            } catch (e) {
-              Alert.alert('Erreur', 'Suppression échouée.');
-            }
-          },
-        },
-      ]
-    );
+    showAlert({
+      title: `Supprimer "${p.nom_produit}" ?`,
+      message: 'Cette action est irréversible.',
+      type: 'warning',
+      confirmText: 'Supprimer',
+      onConfirm: async () => {
+        try {
+          await fetch(`${ENDPOINTS.adminProduits}/${p.id_produit}`, {
+            method: 'DELETE',
+            headers: { Authorization: `Bearer ${token}` },
+          });
+          fetchProduits();
+        } catch (e) {
+          showAlert({ title: 'Erreur', message: 'Suppression échouée.', type: 'error' });
+        }
+      },
+    });
   };
 
   const toggleDispo = async (p) => {
@@ -174,18 +186,18 @@ export default function AdminProduits() {
       const data = await res.json();
       if (data.status === 'success') fetchProduits();
     } catch (e) {
-      Alert.alert('Erreur', 'Impossible de modifier la disponibilité.');
+      showAlert({ title: 'Erreur', message: 'Impossible de modifier la disponibilité.', type: 'error' });
     }
   };
 
   const renderProduit = ({ item }) => (
-    <View style={[styles.produitCard, !item.disponible && styles.produitCardGrise]}>
+    <View style={[styles.produitCard, !item.disponible && { opacity: 0.6 }]}>
       <Image source={{ uri: item.img_url }} style={styles.produitImg} defaultSource={require('../../assets/placeholder.png')} />
       <View style={styles.produitInfo}>
         <View style={styles.produitTitreRow}>
           <Text style={styles.produitNom} numberOfLines={1}>{item.nom_produit}</Text>
-          <View style={[styles.categoriePill, !item.disponible && { backgroundColor: '#eee' }]}>
-            <Text style={[styles.categorieText, !item.disponible && { color: '#aaa' }]}>{item.categorie || 'Plat'}</Text>
+          <View style={[styles.categoriePill, { backgroundColor: COLORS.primary + '15' }]}>
+            <Text style={[styles.categorieText, { color: COLORS.primary }]}>{item.categorie || 'Plat'}</Text>
           </View>
         </View>
         <Text style={styles.produitDesc} numberOfLines={1}>{item.description}</Text>
@@ -198,11 +210,11 @@ export default function AdminProduits() {
         <TouchableOpacity style={styles.actionBtn} onPress={() => ouvrirModifier(item)}>
           <Ionicons name="pencil" size={16} color="#2196F3" />
         </TouchableOpacity>
-        <TouchableOpacity style={[styles.actionBtn, { backgroundColor: item.disponible ? '#FF980018' : '#4CAF5018' }]} onPress={() => toggleDispo(item)}>
-          <Ionicons name={item.disponible ? 'eye-off-outline' : 'eye-outline'} size={16} color={item.disponible ? '#FF9800' : '#4CAF50'} />
+        <TouchableOpacity style={[styles.actionBtn, { backgroundColor: item.disponible ? COLORS.warning + '15' : COLORS.success + '15' }]} onPress={() => toggleDispo(item)}>
+          <Ionicons name={item.disponible ? 'eye-off-outline' : 'eye-outline'} size={16} color={item.disponible ? COLORS.warning : COLORS.success} />
         </TouchableOpacity>
-        <TouchableOpacity style={[styles.actionBtn, { backgroundColor: '#f4433618' }]} onPress={() => supprimer(item)}>
-          <Ionicons name="trash-outline" size={16} color="#f44336" />
+        <TouchableOpacity style={[styles.actionBtn, { backgroundColor: COLORS.error + '15' }]} onPress={() => supprimer(item)}>
+          <Ionicons name="trash-outline" size={16} color={COLORS.error} />
         </TouchableOpacity>
       </View>
     </View>
@@ -210,38 +222,23 @@ export default function AdminProduits() {
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
-      <StatusBar barStyle="light-content" backgroundColor="#FF6B35" />
-    <View style={styles.containt}>
-      {/* Modal ajouter/modifier */}
+      <StatusBar barStyle="light-content" backgroundColor={COLORS.primary} />
+      
       <Modal visible={modalVisible} animationType="slide" transparent>
         <View style={styles.modalOverlay}>
           <View style={styles.modalContainer}>
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>{modeEdition ? 'Modifier le produit' : 'Nouveau produit'}</Text>
-              <TouchableOpacity onPress={() => setModalVisible(false)}>
-                <Ionicons name="close" size={24} color="#1a1a1a" />
-              </TouchableOpacity>
+              <TouchableOpacity onPress={() => setModalVisible(false)}><Ionicons name="close" size={24} color={COLORS.text.primary} /></TouchableOpacity>
             </View>
-            <ScrollView style={styles.modalScroll} keyboardShouldPersistTaps="handled" keyboardDismissMode="none">
-
-              {/* Image */}
+            <ScrollView style={styles.modalScroll} keyboardShouldPersistTaps="handled">
               <TouchableOpacity style={styles.imagePickerBtn} onPress={choisirImage}>
-                {imageLocale ? (
-                  <Image source={{ uri: imageLocale.uri }} style={styles.imagePreview} />
-                ) : modeEdition && produitEdite ? (
-                  <Image source={{ uri: produitEdite.img_url }} style={styles.imagePreview} />
-                ) : (
-                  <View style={styles.imagePlaceholder}>
-                    <Ionicons name="image-outline" size={36} color="#aaa" />
-                    <Text style={styles.imagePlaceholderText}>Toucher pour choisir une image</Text>
-                  </View>
+                {imageLocale ? (<Image source={{ uri: imageLocale.uri }} style={styles.imagePreview} />) : modeEdition && produitEdite ? (<Image source={{ uri: produitEdite.img_url }} style={styles.imagePreview} />) : (
+                  <View style={styles.imagePlaceholder}><Ionicons name="image-outline" size={36} color={COLORS.text.disabled} /><Text style={styles.imagePlaceholderText}>Choisir une image</Text></View>
                 )}
-                <View style={styles.imageEditOverlay}>
-                  <Ionicons name="camera" size={16} color="#fff" />
-                </View>
+                <View style={styles.imageEditOverlay}><Ionicons name="camera" size={16} color="#fff" /></View>
               </TouchableOpacity>
 
-              {/* Champs */}
               {[
                 { label: 'Nom du produit *', key: 'nom_produit', placeholder: 'Ex: Ndolé', keyboard: 'default' },
                 { label: 'Description *', key: 'description', placeholder: 'Brève description', keyboard: 'default' },
@@ -251,51 +248,29 @@ export default function AdminProduits() {
                 <View key={f.key} style={styles.inputGroup}>
                   <Text style={styles.label}>{f.label}</Text>
                   <View style={styles.inputWrapper}>
-                    <TextInput
-                      style={styles.input}
-                      placeholder={f.placeholder}
-                      placeholderTextColor="#bbb"
-                      value={form[f.key]}
-                      onChangeText={v => update(f.key, v)}
-                      keyboardType={f.keyboard}
-                      autoCorrect={false}
-                    />
+                    <TextInput style={styles.input} placeholder={f.placeholder} placeholderTextColor={COLORS.text.disabled} value={form[f.key]} onChangeText={v => update(f.key, v)} keyboardType={f.keyboard} />
                   </View>
                 </View>
               ))}
 
-              {/* Catégorie */}
               <View style={styles.inputGroup}>
                 <Text style={styles.label}>Catégorie</Text>
-                <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{gap: 8}}>
                   {CATEGORIES.map(c => (
-                    <TouchableOpacity
-                      key={c}
-                      style={[styles.catPill, form.categorie === c && styles.catPillActive]}
-                      onPress={() => update('categorie', c)}
-                    >
-                      <Text style={[styles.catPillText, form.categorie === c && styles.catPillTextActive]}>{c}</Text>
+                    <TouchableOpacity key={c} style={[styles.catPill, form.categorie === c && styles.catPillActive]} onPress={() => update('categorie', c)}>
+                      <Text style={[styles.catPillText, form.categorie === c && {color: '#fff'}]}>{c}</Text>
                     </TouchableOpacity>
                   ))}
                 </ScrollView>
               </View>
 
-              {/* Disponible */}
               <TouchableOpacity style={styles.dispoRow} onPress={() => update('disponible', form.disponible ? 0 : 1)}>
-                <View style={[styles.toggle, form.disponible && styles.toggleOn]}>
-                  <View style={[styles.toggleThumb, form.disponible && styles.toggleThumbOn]} />
-                </View>
-                <Text style={styles.dispoText}>Produit disponible à la vente</Text>
+                <View style={[styles.toggle, form.disponible && {backgroundColor: COLORS.success}]}><View style={[styles.toggleThumb, form.disponible && {transform: [{translateX: 20}]}]} /></View>
+                <Text style={styles.dispoText}>Produit disponible</Text>
               </TouchableOpacity>
 
               <TouchableOpacity style={styles.btnSauvegarder} onPress={sauvegarder} disabled={saving}>
-                {saving
-                  ? <ActivityIndicator color="#fff" />
-                  : <>
-                      <Ionicons name={modeEdition ? 'checkmark-circle-outline' : 'add-circle-outline'} size={20} color="#fff" />
-                      <Text style={styles.btnSauvegarderText}>{modeEdition ? 'Sauvegarder' : 'Ajouter le produit'}</Text>
-                    </>
-                }
+                {saving ? <ActivityIndicator color="#fff" /> : <Text style={styles.btnSauvegarderText}>{modeEdition ? 'Sauvegarder' : 'Ajouter'}</Text>}
               </TouchableOpacity>
               <View style={{ height: 80 }} />
             </ScrollView>
@@ -303,103 +278,74 @@ export default function AdminProduits() {
         </View>
       </Modal>
 
-      {/* Header */}
       <View style={styles.header}>
         <Text style={styles.headerTitle}>Produits</Text>
-        <TouchableOpacity style={styles.addBtn} onPress={ouvrirAjouter}>
-          <Ionicons name="add" size={22} color="#fff" />
-        </TouchableOpacity>
+        <TouchableOpacity style={styles.addBtn} onPress={ouvrirAjouter}><Ionicons name="add" size={22} color="#fff" /></TouchableOpacity>
       </View>
 
-      {/* Légende */}
-      <View style={styles.legendeRow}>
-        <Text style={styles.legendeText}>{produits.length} produit{produits.length > 1 ? 's' : ''} · </Text>
-        <Text style={[styles.legendeText, { color: '#4CAF50' }]}>{produits.filter(p => p.disponible).length} disponibles</Text>
-        <Text style={styles.legendeText}> · </Text>
-        <Text style={[styles.legendeText, { color: '#aaa' }]}>{produits.filter(p => !p.disponible).length} masqués</Text>
-      </View>
-
-      {loading
-        ? <ActivityIndicator size="large" color="#FF6B35" style={{ marginTop: 40 }} />
-        : <FlatList
-            data={produits}
-            keyExtractor={item => item.id_produit.toString()}
-            renderItem={renderProduit}
-            contentContainerStyle={styles.list}
-            showsVerticalScrollIndicator={false}
-            refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={['#FF6B35']} />}
-            ListEmptyComponent={
-              <View style={styles.emptyContainer}>
-                <Text style={styles.emptyEmoji}>🍽️</Text>
-                <Text style={styles.emptyText}>Aucun produit. Ajoutez-en un !</Text>
-              </View>
-            }
-          />
-      }
-      </View>
+      {loading ? (
+        <ProduitsSkeleton />
+      ) : (
+        <FlatList
+          data={produits}
+          keyExtractor={item => item.id_produit.toString()}
+          renderItem={renderProduit}
+          contentContainerStyle={styles.list}
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[COLORS.primary]} />}
+        />
+      )}
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#FF6B35' },
-  containt: {flex: 1, backgroundColor: 'white'},
-  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 20, paddingVertical: 14 },
-  headerTitle: { fontSize: 24, fontWeight: '800', color: '#1a1a1a' },
-  addBtn: { width: 44, height: 44, borderRadius: 22, backgroundColor: '#FF6B35', alignItems: 'center', justifyContent: 'center', shadowColor: '#FF6B35', shadowOffset: { width: 0, height: 3 }, shadowOpacity: 0.3, shadowRadius: 8, elevation: 4 },
-  legendeRow: { flexDirection: 'row', paddingHorizontal: 20, marginBottom: 8 },
-  legendeText: { fontSize: 12, color: '#aaa', fontWeight: '600' },
-  list: { paddingHorizontal: 16, paddingBottom: 20 },
+  container: { flex: 1, backgroundColor: COLORS.background },
+  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: SPACING.md, backgroundColor: COLORS.surface, borderBottomWidth: 1, borderBottomColor: COLORS.border },
+  headerTitle: { fontSize: 24, fontWeight: '800', color: COLORS.text.primary },
+  addBtn: { width: 44, height: 44, borderRadius: RADIUS.full, backgroundColor: COLORS.primary, alignItems: 'center', justifyContent: 'center', ...SHADOWS.medium },
+  list: { padding: SPACING.md },
 
-  produitCard: { flexDirection: 'row', backgroundColor: '#fff', borderRadius: 14, marginBottom: 10, overflow: 'hidden', shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.05, shadowRadius: 6, elevation: 2 },
-  produitCardGrise: { opacity: 0.65 },
-  produitImg: { width: 80, height: 80 },
-  produitInfo: { flex: 1, padding: 10, justifyContent: 'space-between' },
-  produitTitreRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  produitNom: { flex: 1, fontSize: 14, fontWeight: '800', color: '#1a1a1a' },
-  categoriePill: { backgroundColor: '#FF6B3515', borderRadius: 20, paddingHorizontal: 7, paddingVertical: 2 },
-  categorieText: { fontSize: 10, color: '#FF6B35', fontWeight: '700' },
-  produitDesc: { fontSize: 11, color: '#888' },
-  produitStatsRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  produitPrix: { fontSize: 14, fontWeight: '900', color: '#FF6B35' },
-  produitStock: { fontSize: 11, color: '#aaa' },
-  produitActions: { justifyContent: 'space-between', padding: 8, gap: 6 },
-  actionBtn: { width: 32, height: 32, borderRadius: 8, backgroundColor: '#2196F318', alignItems: 'center', justifyContent: 'center' },
-
-  emptyContainer: { alignItems: 'center', marginTop: 60 },
-  emptyEmoji: { fontSize: 56, marginBottom: 12 },
-  emptyText: { fontSize: 15, color: '#aaa', fontWeight: '600' },
+  produitCard: { flexDirection: 'row', backgroundColor: COLORS.surface, borderRadius: RADIUS.lg, marginBottom: SPACING.md, padding: SPACING.sm, ...SHADOWS.light },
+  produitImg: { width: 80, height: 80, borderRadius: RADIUS.md },
+  produitInfo: { flex: 1, paddingHorizontal: SPACING.md, justifyContent: 'center' },
+  produitTitreRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 4 },
+  produitNom: { flex: 1, fontSize: 15, fontWeight: '800', color: COLORS.text.primary },
+  categoriePill: { borderRadius: RADIUS.full, paddingHorizontal: 8, paddingVertical: 2 },
+  categorieText: { fontSize: 10, fontWeight: '700' },
+  produitDesc: { fontSize: 12, color: COLORS.text.secondary },
+  produitStatsRow: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 8 },
+  produitPrix: { fontSize: 14, fontWeight: '900', color: COLORS.primary },
+  produitStock: { fontSize: 12, color: COLORS.text.secondary },
+  produitActions: { justifyContent: 'space-between', padding: 4, gap: 6 },
+  actionBtn: { width: 36, height: 36, borderRadius: RADIUS.md, backgroundColor: COLORS.background, alignItems: 'center', justifyContent: 'center' },
 
   // Modal
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
-  modalContainer: { backgroundColor: '#fff', borderTopLeftRadius: 24, borderTopRightRadius: 24, maxHeight: '95%' },
-  modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 20, borderBottomWidth: 1, borderBottomColor: '#f0f0f0' },
-  modalTitle: { fontSize: 18, fontWeight: '800', color: '#1a1a1a' },
-  modalScroll: { padding: 20 },
+  modalContainer: { backgroundColor: COLORS.surface, borderTopLeftRadius: RADIUS.xl, borderTopRightRadius: RADIUS.xl, maxHeight: '95%' },
+  modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: SPACING.md, borderBottomWidth: 1, borderBottomColor: COLORS.border },
+  modalTitle: { fontSize: 18, fontWeight: '800', color: COLORS.text.primary },
+  modalScroll: { padding: SPACING.md },
+  
+  imagePickerBtn: { alignSelf: 'center', marginBottom: SPACING.md },
+  imagePreview: { width: 120, height: 120, borderRadius: RADIUS.lg },
+  imagePlaceholder: { width: 120, height: 120, borderRadius: RADIUS.lg, backgroundColor: COLORS.background, alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: COLORS.border, borderStyle: 'dashed' },
+  imagePlaceholderText: { fontSize: 11, color: COLORS.text.disabled, marginTop: 6 },
+  imageEditOverlay: { position: 'absolute', bottom: 4, right: 4, width: 28, height: 28, borderRadius: RADIUS.full, backgroundColor: COLORS.primary, alignItems: 'center', justifyContent: 'center' },
 
-  imagePickerBtn: { alignSelf: 'center', marginBottom: 20, position: 'relative' },
-  imagePreview: { width: 120, height: 120, borderRadius: 16 },
-  imagePlaceholder: { width: 120, height: 120, borderRadius: 16, backgroundColor: '#f5f5f5', alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: '#eee', borderStyle: 'dashed' },
-  imagePlaceholderText: { fontSize: 11, color: '#aaa', textAlign: 'center', marginTop: 6 },
-  imageEditOverlay: { position: 'absolute', bottom: 4, right: 4, width: 28, height: 28, borderRadius: 14, backgroundColor: '#FF6B35', alignItems: 'center', justifyContent: 'center' },
-
-  inputGroup: { marginBottom: 14 },
-  label: { fontSize: 13, fontWeight: '600', color: '#555', marginBottom: 6 },
-  inputWrapper: { borderWidth: 1.5, borderColor: '#eee', borderRadius: 12, paddingHorizontal: 14, backgroundColor: '#fafafa', height: 50, justifyContent: 'center' },
-  input: { fontSize: 15, color: '#1a1a1a' },
-
-  catPill: { borderWidth: 1.5, borderColor: '#eee', borderRadius: 20, paddingHorizontal: 14, paddingVertical: 7, marginRight: 8, backgroundColor: '#fff' },
-  catPillActive: { backgroundColor: '#FF6B35', borderColor: '#FF6B35' },
-  catPillText: { fontSize: 13, fontWeight: '600', color: '#555' },
-  catPillTextActive: { color: '#fff' },
-
-  dispoRow: { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 20, padding: 14, backgroundColor: '#f8f8f8', borderRadius: 12 },
-  toggle: { width: 46, height: 26, borderRadius: 13, backgroundColor: '#ddd', padding: 2 },
-  toggleOn: { backgroundColor: '#4CAF50' },
-  toggleThumb: { width: 22, height: 22, borderRadius: 11, backgroundColor: '#fff' },
-  toggleThumbOn: { transform: [{ translateX: 20 }] },
-  dispoText: { fontSize: 14, color: '#333', fontWeight: '500' },
-
-  btnSauvegarder: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10, backgroundColor: '#FF6B35', borderRadius: 14, height: 54, shadowColor: '#FF6B35', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 10, elevation: 5 },
+  inputGroup: { marginBottom: SPACING.md },
+  label: { fontSize: 13, fontWeight: '700', color: COLORS.text.secondary, marginBottom: 6 },
+  inputWrapper: { borderWidth: 1, borderColor: COLORS.border, borderRadius: RADIUS.md, paddingHorizontal: SPACING.md, backgroundColor: COLORS.background, height: 52, justifyContent: 'center' },
+  input: { fontSize: 15, color: COLORS.text.primary },
+  
+  catPill: { borderWidth: 1, borderColor: COLORS.border, borderRadius: RADIUS.full, paddingHorizontal: 14, paddingVertical: 8, backgroundColor: COLORS.surface },
+  catPillActive: { backgroundColor: COLORS.primary, borderColor: COLORS.primary },
+  catPillText: { fontSize: 13, fontWeight: '600', color: COLORS.text.secondary },
+  
+  dispoRow: { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: SPACING.lg, padding: SPACING.md, backgroundColor: COLORS.background, borderRadius: RADIUS.md },
+  toggle: { width: 44, height: 24, borderRadius: RADIUS.full, backgroundColor: COLORS.text.disabled, padding: 2 },
+  toggleThumb: { width: 20, height: 20, borderRadius: RADIUS.full, backgroundColor: '#fff' },
+  dispoText: { fontSize: 14, fontWeight: '600', color: COLORS.text.primary },
+  
+  btnSauvegarder: { backgroundColor: COLORS.primary, borderRadius: RADIUS.lg, height: 56, alignItems: 'center', justifyContent: 'center', ...SHADOWS.medium },
   btnSauvegarderText: { color: '#fff', fontSize: 16, fontWeight: '700' },
 });

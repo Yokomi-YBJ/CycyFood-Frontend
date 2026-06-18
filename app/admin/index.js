@@ -1,222 +1,413 @@
 // app/admin/index.js
 import React, { useState, useEffect, useCallback } from 'react';
 import {
-  View, Text, ScrollView, StyleSheet, TouchableOpacity,
-  RefreshControl, ActivityIndicator, StatusBar,
+  View, Text, StyleSheet, FlatList, TouchableOpacity,
+  ActivityIndicator, RefreshControl, StatusBar, Modal,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
 import { useAuth } from '../../context/AuthContext';
+import { useAlert } from '../../context/AlertContext';
+import { useRouter } from 'expo-router';
 import { ENDPOINTS } from '../../constants/api';
+import { COLORS, SPACING, RADIUS, SHADOWS } from '../../constants/theme';
 
-const STATUT_CONFIG = {
-  en_attente:   { label: 'En attente',   color: '#FF9800', bg: '#FF980015', icon: 'time-outline' },
-  confirmee:    { label: 'Confirmée',    color: '#2196F3', bg: '#2196F315', icon: 'checkmark-circle-outline' },
-  en_livraison: { label: 'En livraison', color: '#9C27B0', bg: '#9C27B015', icon: 'bicycle-outline' },
-  livree:       { label: 'Livrée',       color: '#4CAF50', bg: '#4CAF5015', icon: 'bag-check-outline' },
-  annulee:      { label: 'Annulée',      color: '#f44336', bg: '#f4433615', icon: 'close-circle-outline' },
-};
+const STATUTS = [
+  { value: 'en_attente',   label: 'En attente',   color: COLORS.warning,  icon: 'time-outline' },
+  { value: 'confirmee',    label: 'Confirmée',    color: COLORS.info,     icon: 'checkmark-circle-outline' },
+  { value: 'en_livraison', label: 'En livraison', color: '#9C27B0',       icon: 'bicycle-outline' },
+  { value: 'livree',       label: 'Livrée',       color: COLORS.success,  icon: 'bag-check-outline' },
+  { value: 'annulee',      label: 'Annulée',      color: COLORS.error,    icon: 'close-circle-outline' },
+];
 
-export default function AdminDashboard() {
-  const { user } = useAuth();
+function StatutBadge({ statut }) {
+  const cfg = STATUTS.find(s => s.value === statut) || STATUTS[0];
+  return (
+    <View style={[styles.badge, { backgroundColor: cfg.color + '18' }]}>
+      <Ionicons name={cfg.icon} size={12} color={cfg.color} />
+      <Text style={[styles.badgeText, { color: cfg.color }]}>{cfg.label}</Text>
+    </View>
+  );
+}
+
+function CommandeCard({ item, onUpdateStatut }) {
+  const [expanded, setExpanded] = useState(false);
+  const aLivraison = item.avec_livraison === 1 || item.avec_livraison === true;
+
+  const formatDate = (d) => new Date(d).toLocaleDateString('fr-FR', {
+    day: '2-digit', month: 'short', year: 'numeric',
+  });
+
+  return (
+    <View style={styles.card}>
+      <TouchableOpacity onPress={() => setExpanded(!expanded)} activeOpacity={0.85}>
+        <View style={styles.cardHeader}>
+          <View style={styles.cardLeft}>
+            <View style={styles.idBadge}>
+              <Text style={styles.idText}>#{item.id_commande}</Text>
+            </View>
+            <View>
+              <Text style={styles.clientName}>{item.client_nom}</Text>
+              <Text style={styles.clientPhone}>{item.client_telephone}</Text>
+            </View>
+          </View>
+          <View style={styles.cardRight}>
+            <Text style={styles.prix}>{item.prix_commande} F</Text>
+            <Ionicons
+              name={expanded ? 'chevron-up' : 'chevron-down'}
+              size={16}
+              color={COLORS.text.disabled}
+            />
+          </View>
+        </View>
+
+        <View style={styles.cardMeta}>
+          <StatutBadge statut={item.statut} />
+          <View style={[styles.typeBadge, { backgroundColor: aLivraison ? '#9C27B018' : COLORS.success + '18' }]}>
+            <Ionicons
+              name={aLivraison ? 'bicycle-outline' : 'storefront-outline'}
+              size={11}
+              color={aLivraison ? '#9C27B0' : COLORS.success}
+            />
+            <Text style={[styles.typeBadgeText, { color: aLivraison ? '#9C27B0' : COLORS.success }]}>
+              {aLivraison ? 'Livraison' : 'Retrait'}
+            </Text>
+          </View>
+          <Text style={styles.dateText}>{formatDate(item.date_commande)}</Text>
+        </View>
+      </TouchableOpacity>
+
+      {expanded && (
+        <View style={styles.expandedSection}>
+          {item.client_adresse && (
+            <View style={styles.infoRow}>
+              <Ionicons name="location-outline" size={14} color={COLORS.text.disabled} />
+              <Text style={styles.infoText}>{item.client_adresse}</Text>
+            </View>
+          )}
+          <View style={styles.infoRow}>
+            <Ionicons name="restaurant-outline" size={14} color={COLORS.text.disabled} />
+            <Text style={styles.infoText} numberOfLines={3}>{item.produits_noms}</Text>
+          </View>
+
+          {/* Actions statut */}
+          <Text style={styles.actionTitle}>Changer le statut :</Text>
+          <View style={styles.actionsGrid}>
+            {STATUTS.filter(s => s.value !== item.statut).map(s => (
+              <TouchableOpacity
+                key={s.value}
+                style={[styles.actionBtn, { borderColor: s.color + '60', backgroundColor: s.color + '10' }]}
+                onPress={() => onUpdateStatut(item.id_commande, s.value)}
+              >
+                <Ionicons name={s.icon} size={14} color={s.color} />
+                <Text style={[styles.actionBtnText, { color: s.color }]}>{s.label}</Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        </View>
+      )}
+    </View>
+  );
+}
+
+export default function AdminScreen() {
+  const { token, user, deconnexion } = useAuth();
+  const { showAlert } = useAlert();
   const router = useRouter();
-  const [stats, setStats] = useState(null);
-  const [recentes, setRecentes] = useState([]);
+  const [commandes, setCommandes] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const { token } = useAuth();
+  const [filtreStatut, setFiltreStatut] = useState('all');
 
-  const fetchStats = async () => {
+  const fetchCommandes = async () => {
     try {
-      const res = await fetch(ENDPOINTS.adminStats, {
+      const res = await fetch(ENDPOINTS.adminCommandes, {
         headers: { Authorization: `Bearer ${token}` },
       });
       const data = await res.json();
-      if (data.status === 'success') {
-        setStats(data.stats);
-        setRecentes(data.commandes_recentes);
-      }
-    } catch (e) {
-      console.error('Erreur stats:', e);
+      if (data.status === 'success') setCommandes(data.commandes);
+    } catch {
+      showAlert({ title: 'Erreur réseau', message: 'Impossible de charger les commandes.', type: 'error' });
     } finally {
       setLoading(false);
       setRefreshing(false);
     }
   };
 
-  useEffect(() => { fetchStats(); }, []);
-  const onRefresh = useCallback(() => { setRefreshing(true); fetchStats(); }, []);
+  useEffect(() => { fetchCommandes(); }, []);
+  const onRefresh = useCallback(() => { setRefreshing(true); fetchCommandes(); }, []);
 
-  const StatCard = ({ icon, label, value, color, onPress }) => (
-    <TouchableOpacity style={[styles.statCard, { borderLeftColor: color }]} onPress={onPress} activeOpacity={onPress ? 0.7 : 1}>
-      <View style={[styles.statIcon, { backgroundColor: color + '18' }]}>
-        <Ionicons name={icon} size={22} color={color} />
-      </View>
-      <View>
-        <Text style={styles.statVal}>{value}</Text>
-        <Text style={styles.statLabel}>{label}</Text>
-      </View>
-    </TouchableOpacity>
-  );
+  const handleUpdateStatut = async (idCommande, nouveauStatut) => {
+    try {
+      const res = await fetch(`${ENDPOINTS.adminCommandes}/${idCommande}/statut`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ statut: nouveauStatut }),
+      });
+      const data = await res.json();
+      if (data.status === 'success') {
+        setCommandes(prev => prev.map(c =>
+          c.id_commande === idCommande ? { ...c, statut: nouveauStatut } : c
+        ));
+        showAlert({
+          title: 'Statut mis à jour',
+          message: `Commande #${idCommande} → ${STATUTS.find(s => s.value === nouveauStatut)?.label}`,
+          type: 'success',
+        });
+      }
+    } catch {
+      showAlert({ title: 'Erreur', message: 'Mise à jour échouée.', type: 'error' });
+    }
+  };
+
+  const commandesFiltrees = filtreStatut === 'all'
+    ? commandes
+    : commandes.filter(c => c.statut === filtreStatut);
+
+  const handleLogout = () => {
+    showAlert({
+      title: 'Déconnexion',
+      message: 'Quitter le panneau admin ?',
+      type: 'warning',
+      confirmText: 'Déconnexion',
+      cancelText: 'Annuler',
+      onConfirm: async () => {
+        await deconnexion();
+        router.replace('/auth/login');
+      },
+    });
+  };
+
+  // Stats rapides
+  const stats = {
+    total:      commandes.length,
+    attente:    commandes.filter(c => c.statut === 'en_attente').length,
+    livraison:  commandes.filter(c => c.statut === 'en_livraison').length,
+    livrees:    commandes.filter(c => c.statut === 'livree').length,
+    ca:         commandes.filter(c => c.statut === 'livree').reduce((sum, c) => sum + Number(c.prix_commande || 0), 0),
+  };
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
-      <StatusBar barStyle="light-content" backgroundColor="#FF6B35" />
-    <View style={styles.containt}>
+      <StatusBar barStyle="light-content" backgroundColor={COLORS.primary} />
+
+      {/* Header admin */}
       <View style={styles.header}>
-        <View>
-          <Text style={styles.headerSub}>Espace administrateur</Text>
-          <Text style={styles.headerTitle}>Bonjour, {user?.nom_user} 👑</Text>
+        <View style={styles.headerDecor} />
+        <View style={styles.headerContent}>
+          <View>
+            <Text style={styles.headerEyebrow}>Tableau de bord</Text>
+            <Text style={styles.headerTitle}>Admin LaTchop</Text>
+          </View>
+          <TouchableOpacity style={styles.logoutBtn} onPress={handleLogout}>
+            <Ionicons name="log-out-outline" size={20} color="rgba(255,255,255,0.9)" />
+          </TouchableOpacity>
         </View>
-        <View style={styles.adminBadge}>
-          <Ionicons name="shield-checkmark" size={20} color="#FF6B35" />
+
+        {/* Stats rapides */}
+        <View style={styles.statsRow}>
+          {[
+            { label: 'Total', val: stats.total, icon: 'receipt', color: '#fff' },
+            { label: 'En attente', val: stats.attente, icon: 'time', color: COLORS.warning },
+            { label: 'Livrées', val: stats.livrees, icon: 'bag-check', color: COLORS.success },
+            { label: 'CA (F)', val: stats.ca.toLocaleString(), icon: 'wallet', color: COLORS.accent, small: true },
+          ].map((s, i) => (
+            <View key={i} style={styles.statCard}>
+              <Text style={[styles.statVal, s.small && { fontSize: 14 }]}>{s.val}</Text>
+              <Text style={styles.statLabel}>{s.label}</Text>
+            </View>
+          ))}
         </View>
       </View>
 
-      <ScrollView
-        showsVerticalScrollIndicator={false}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={['#FF6B35']} />}
-      >
-        {loading ? (
-          <ActivityIndicator size="large" color="#FF6B35" style={{ marginTop: 60 }} />
-        ) : stats ? (
-          <>
-            {/* Alerte commandes en attente */}
-            {stats.en_attente > 0 && (
-              <TouchableOpacity style={styles.alertBanner} onPress={() => router.push('/admin/commandes')}>
-                <Ionicons name="alert-circle" size={20} color="#FF6B35" />
-                <Text style={styles.alertText}>
-                  {stats.en_attente} commande{stats.en_attente > 1 ? 's' : ''} en attente de traitement
-                </Text>
-                <Ionicons name="chevron-forward" size={16} color="#FF6B35" />
+      {/* Filtres */}
+      <View>
+        <FlatList
+          horizontal
+          data={[{ value: 'all', label: 'Toutes', icon: 'list' }, ...STATUTS]}
+          keyExtractor={i => i.value}
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.filtresRow}
+          renderItem={({ item }) => {
+            const active = filtreStatut === item.value;
+            const color = item.color || COLORS.primary;
+            const count = item.value === 'all'
+              ? commandes.length
+              : commandes.filter(c => c.statut === item.value).length;
+            return (
+              <TouchableOpacity
+                style={[styles.filtreChip, active && { backgroundColor: color, borderColor: color }]}
+                onPress={() => setFiltreStatut(item.value)}
+              >
+                <Text style={[styles.filtreLabel, active && { color: '#fff' }]}>{item.label}</Text>
+                <View style={[styles.filtreCount, { backgroundColor: active ? 'rgba(255,255,255,0.25)' : color + '18' }]}>
+                  <Text style={[styles.filtreCountText, { color: active ? '#fff' : color }]}>{count}</Text>
+                </View>
               </TouchableOpacity>
-            )}
-
-            {/* Chiffre d'affaires */}
-            <View style={styles.caCard}>
-              <Text style={styles.caLabel}>Chiffre d'affaires total</Text>
-              <Text style={styles.caVal}>{stats.chiffre_affaires.toLocaleString()} Fcfa</Text>
-              <Text style={styles.caSub}>{stats.total_commandes} commandes au total</Text>
-            </View>
-
-            {/* Grille de stats */}
-            <View style={styles.statsGrid}>
-              <StatCard icon="time-outline"       label="En attente"    value={stats.en_attente}    color="#FF9800" onPress={() => router.push('/admin/commandes')} />
-              <StatCard icon="checkmark-circle-outline" label="Confirmées" value={stats.confirmees} color="#2196F3" onPress={() => router.push('/admin/commandes')} />
-              <StatCard icon="people-outline"     label="Clients"       value={stats.total_clients} color="#9C27B0" onPress={() => router.push('/admin/clients')} />
-              <StatCard icon="restaurant-outline" label="Produits dispo" value={`${stats.produits_dispo}/${stats.total_produits}`} color="#4CAF50" onPress={() => router.push('/admin/produits')} />
-            </View>
-
-            {/* Commandes récentes */}
-            <View style={styles.section}>
-              <View style={styles.sectionRow}>
-                <Text style={styles.sectionTitle}>Commandes récentes</Text>
-                <TouchableOpacity onPress={() => router.push('/admin/commandes')}>
-                  <Text style={styles.voirTout}>Voir tout </Text>
-                </TouchableOpacity>
-              </View>
-
-              {recentes.map(cmd => {
-                const cfg = STATUT_CONFIG[cmd.statut] || STATUT_CONFIG.en_attente;
-                return (
-                  <TouchableOpacity
-                    key={cmd.id_commande}
-                    style={styles.cmdCard}
-                    onPress={() => router.push('/admin/commandes')}
-                    activeOpacity={0.8}
-                  >
-                    <View style={[styles.cmdIconWrap, { backgroundColor: cfg.bg }]}>
-                      <Ionicons name={cfg.icon} size={18} color={cfg.color} />
-                    </View>
-                    <View style={styles.cmdInfo}>
-                      <Text style={styles.cmdNom}>{cmd.nom_user} {cmd.prenom_user}</Text>
-                      <Text style={styles.cmdHeure}>{cmd.heure_commande?.slice(0,5)} </Text>
-                    </View>
-                    <View style={styles.cmdRight}>
-                      <Text style={styles.cmdPrix}>{cmd.prix_commande} Fcfa</Text>
-                      <View style={[styles.statutPill, { backgroundColor: cfg.bg }]}>
-                        <Text style={[styles.statutPillText, { color: cfg.color }]}>{cfg.label}</Text>
-                      </View>
-                    </View>
-                  </TouchableOpacity>
-                );
-              })}
-            </View>
-
-            {/* Actions rapides */}
-            <View style={styles.section}>
-              <Text style={styles.sectionTitle}>Actions rapides</Text>
-              <View style={styles.actionsGrid}>
-                {[
-                  { icon: 'add-circle-outline', label: 'Nouveau produit', color: '#4CAF50', route: '/admin/produits' },
-                  { icon: 'receipt-outline',    label: 'Commandes',       color: '#2196F3', route: '/admin/commandes' },
-                  { icon: 'people-outline',     label: 'Clients',         color: '#9C27B0', route: '/admin/clients' },
-                  { icon: 'analytics-outline',  label: 'Statistiques',    color: '#FF6B35', route: null },
-                ].map((a, i) => (
-                  <TouchableOpacity
-                    key={i}
-                    style={styles.actionCard}
-                    onPress={() => a.route && router.push(a.route)}
-                    activeOpacity={0.7}
-                  >
-                    <View style={[styles.actionIcon, { backgroundColor: a.color + '18' }]}>
-                      <Ionicons name={a.icon} size={26} color={a.color} />
-                    </View>
-                    <Text style={styles.actionLabel}>{a.label}</Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-            </View>
-          </>
-        ) : null}
-
-        <View style={{ height: 80 }} />
-      </ScrollView>
+            );
+          }}
+        />
       </View>
+
+      {loading ? (
+        <View style={styles.center}>
+          <ActivityIndicator size="large" color={COLORS.primary} />
+          <Text style={styles.loadingText}>Chargement des commandes…</Text>
+        </View>
+      ) : commandesFiltrees.length === 0 ? (
+        <View style={styles.empty}>
+          <Ionicons name="receipt-outline" size={52} color={COLORS.text.disabled} />
+          <Text style={styles.emptyTitle}>Aucune commande</Text>
+          <Text style={styles.emptySub}>
+            {filtreStatut === 'all' ? 'Aucune commande enregistrée.' : `Aucune commande "${STATUTS.find(s => s.value === filtreStatut)?.label}".`}
+          </Text>
+        </View>
+      ) : (
+        <FlatList
+          data={commandesFiltrees}
+          keyExtractor={i => i.id_commande.toString()}
+          renderItem={({ item }) => (
+            <CommandeCard item={item} onUpdateStatut={handleUpdateStatut} />
+          )}
+          contentContainerStyle={styles.list}
+          showsVerticalScrollIndicator={false}
+          refreshControl={
+            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[COLORS.primary]} tintColor={COLORS.primary} />
+          }
+        />
+      )}
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#FF6B35' },
-  containt: {flex: 1, backgroundColor: 'white'},
-  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 20, paddingVertical: 16 },
-  headerSub: { fontSize: 12, color: '#aaa', fontWeight: '600', textTransform: 'uppercase', letterSpacing: 0.5 },
-  headerTitle: { fontSize: 22, fontWeight: '800', color: '#1a1a1a', marginTop: 2 },
-  adminBadge: { width: 46, height: 46, borderRadius: 23, backgroundColor: '#FF6B3515', alignItems: 'center', justifyContent: 'center' },
+  container: { flex: 1, backgroundColor: COLORS.background },
 
-  alertBanner: { flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: '#FF6B3512', borderRadius: 14, marginHorizontal: 16, marginBottom: 16, padding: 14, borderWidth: 1, borderColor: '#FF6B3530' },
-  alertText: { flex: 1, fontSize: 13, color: '#FF6B35', fontWeight: '700' },
+  header: {
+    backgroundColor: COLORS.primary,
+    paddingBottom: SPACING.md,
+    overflow: 'hidden',
+  },
+  headerDecor: {
+    position: 'absolute', top: -40, right: -40,
+    width: 160, height: 160, borderRadius: 80,
+    backgroundColor: 'rgba(255,255,255,0.08)',
+  },
+  headerContent: {
+    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start',
+    paddingHorizontal: SPACING.md, paddingTop: SPACING.sm, paddingBottom: SPACING.md,
+  },
+  headerEyebrow: {
+    fontSize: 11, fontWeight: '800', color: 'rgba(255,255,255,0.7)',
+    textTransform: 'uppercase', letterSpacing: 1.5, marginBottom: 3,
+  },
+  headerTitle: { fontSize: 26, fontWeight: '900', color: '#fff', letterSpacing: -0.5 },
+  logoutBtn: {
+    width: 40, height: 40, borderRadius: RADIUS.full,
+    backgroundColor: 'rgba(255,255,255,0.15)',
+    alignItems: 'center', justifyContent: 'center',
+  },
 
-  caCard: { marginHorizontal: 16, marginBottom: 16, backgroundColor: '#FF6B35', borderRadius: 20, padding: 24 },
-  caLabel: { fontSize: 13, color: 'rgba(255,255,255,0.8)', marginBottom: 6 },
-  caVal: { fontSize: 34, fontWeight: '900', color: '#fff', marginBottom: 4 },
-  caSub: { fontSize: 12, color: 'rgba(255,255,255,0.7)' },
+  statsRow: {
+    flexDirection: 'row',
+    paddingHorizontal: SPACING.md,
+    gap: SPACING.sm,
+  },
+  statCard: {
+    flex: 1,
+    backgroundColor: 'rgba(255,255,255,0.18)',
+    borderRadius: RADIUS.md,
+    padding: SPACING.sm,
+    alignItems: 'center',
+  },
+  statVal: { fontSize: 20, fontWeight: '900', color: '#fff' },
+  statLabel: { fontSize: 9, color: 'rgba(255,255,255,0.75)', fontWeight: '600', marginTop: 2, textAlign: 'center' },
 
-  statsGrid: { flexDirection: 'row', flexWrap: 'wrap', paddingHorizontal: 16, gap: 12, marginBottom: 8 },
-  statCard: { width: '47%', backgroundColor: '#fff', borderRadius: 14, padding: 16, flexDirection: 'row', alignItems: 'center', gap: 12, borderLeftWidth: 4, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.05, shadowRadius: 6, elevation: 2 },
-  statIcon: { width: 42, height: 42, borderRadius: 11, alignItems: 'center', justifyContent: 'center' },
-  statVal: { fontSize: 20, fontWeight: '900', color: '#1a1a1a' },
-  statLabel: { fontSize: 11, color: '#888', marginTop: 1 },
+  filtresRow: {
+    paddingHorizontal: SPACING.md,
+    paddingVertical: SPACING.md,
+    gap: SPACING.sm,
+  },
+  filtreChip: {
+    flexDirection: 'row', alignItems: 'center', gap: 6,
+    paddingHorizontal: 12, paddingVertical: 7,
+    borderRadius: RADIUS.full,
+    borderWidth: 1.5, borderColor: COLORS.border,
+    backgroundColor: COLORS.surface,
+  },
+  filtreLabel: { fontSize: 13, fontWeight: '700', color: COLORS.text.secondary },
+  filtreCount: { borderRadius: RADIUS.full, paddingHorizontal: 6, paddingVertical: 2, minWidth: 20, alignItems: 'center' },
+  filtreCountText: { fontSize: 10, fontWeight: '900' },
 
-  section: { paddingHorizontal: 16, marginTop: 8, marginBottom: 8 },
-  sectionRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 },
-  sectionTitle: { fontSize: 16, fontWeight: '800', color: '#1a1a1a' },
-  voirTout: { fontSize: 13, color: '#FF6B35', fontWeight: '700' },
+  center: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: SPACING.sm },
+  loadingText: { fontSize: 14, color: COLORS.text.secondary },
 
-  cmdCard: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#fff', borderRadius: 14, padding: 14, marginBottom: 10, gap: 12, shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.04, shadowRadius: 6, elevation: 1 },
-  cmdIconWrap: { width: 40, height: 40, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
-  cmdInfo: { flex: 1 },
-  cmdNom: { fontSize: 14, fontWeight: '700', color: '#1a1a1a' },
-  cmdHeure: { fontSize: 12, color: '#888', marginTop: 2 },
-  cmdRight: { alignItems: 'flex-end', gap: 4 },
-  cmdPrix: { fontSize: 14, fontWeight: '800', color: '#FF6B35' },
-  statutPill: { borderRadius: 20, paddingHorizontal: 8, paddingVertical: 2 },
-  statutPillText: { fontSize: 10, fontWeight: '700' },
+  empty: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: SPACING.sm },
+  emptyTitle: { fontSize: 20, fontWeight: '800', color: COLORS.text.primary },
+  emptySub: { fontSize: 14, color: COLORS.text.secondary, textAlign: 'center' },
 
-  actionsGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 12 },
-  actionCard: { width: '47%', backgroundColor: '#fff', borderRadius: 16, padding: 18, alignItems: 'center', shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.05, shadowRadius: 6, elevation: 2 },
-  actionIcon: { width: 52, height: 52, borderRadius: 14, alignItems: 'center', justifyContent: 'center', marginBottom: 10 },
-  actionLabel: { fontSize: 13, fontWeight: '700', color: '#1a1a1a' },
+  list: { paddingHorizontal: SPACING.md, paddingBottom: 30, paddingTop: SPACING.sm },
+
+  card: {
+    backgroundColor: COLORS.surface,
+    borderRadius: RADIUS.xl,
+    marginBottom: SPACING.md,
+    overflow: 'hidden',
+    ...SHADOWS.light,
+  },
+  cardHeader: {
+    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
+    padding: SPACING.md,
+  },
+  cardLeft: { flexDirection: 'row', alignItems: 'center', gap: SPACING.sm, flex: 1 },
+  idBadge: {
+    backgroundColor: COLORS.primary + '12',
+    borderRadius: RADIUS.sm,
+    paddingHorizontal: 8, paddingVertical: 4,
+  },
+  idText: { fontSize: 12, fontWeight: '900', color: COLORS.primary },
+  clientName: { fontSize: 15, fontWeight: '700', color: COLORS.text.primary },
+  clientPhone: { fontSize: 12, color: COLORS.text.secondary },
+  cardRight: { alignItems: 'flex-end', gap: 4 },
+  prix: { fontSize: 16, fontWeight: '900', color: COLORS.primary },
+
+  cardMeta: {
+    flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap',
+    gap: 8, paddingHorizontal: SPACING.md, paddingBottom: SPACING.md,
+  },
+  badge: {
+    flexDirection: 'row', alignItems: 'center', gap: 4,
+    paddingHorizontal: 8, paddingVertical: 3, borderRadius: RADIUS.full,
+  },
+  badgeText: { fontSize: 11, fontWeight: '700' },
+  typeBadge: {
+    flexDirection: 'row', alignItems: 'center', gap: 3,
+    paddingHorizontal: 7, paddingVertical: 3, borderRadius: RADIUS.full,
+  },
+  typeBadgeText: { fontSize: 10, fontWeight: '700' },
+  dateText: { fontSize: 11, color: COLORS.text.disabled },
+
+  expandedSection: {
+    padding: SPACING.md,
+    borderTopWidth: 1, borderTopColor: COLORS.border,
+    backgroundColor: COLORS.background,
+  },
+  infoRow: {
+    flexDirection: 'row', alignItems: 'flex-start', gap: 8,
+    marginBottom: SPACING.sm,
+  },
+  infoText: { flex: 1, fontSize: 13, color: COLORS.text.secondary, lineHeight: 19 },
+
+  actionTitle: {
+    fontSize: 12, fontWeight: '800', color: COLORS.text.secondary,
+    textTransform: 'uppercase', letterSpacing: 1,
+    marginTop: SPACING.sm, marginBottom: SPACING.sm,
+  },
+  actionsGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  actionBtn: {
+    flexDirection: 'row', alignItems: 'center', gap: 5,
+    paddingHorizontal: 10, paddingVertical: 7,
+    borderRadius: RADIUS.md, borderWidth: 1.5,
+  },
+  actionBtnText: { fontSize: 12, fontWeight: '700' },
 });

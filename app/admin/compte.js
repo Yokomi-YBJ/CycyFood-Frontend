@@ -1,56 +1,57 @@
 // app/admin/compte.js
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Alert, ScrollView, StatusBar } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, StatusBar } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useAuth } from '../../context/AuthContext';
+import { useAlert } from '../../context/AlertContext';
+import { COLORS, SPACING, RADIUS, TYPOGRAPHY, SHADOWS } from '../../constants/theme';
 
 export default function AdminCompte() {
   const { user, deconnexion } = useAuth();
+  const { showAlert } = useAlert();
   const router = useRouter();
 
   const handleDeconnexion = () => {
-    Alert.alert('Déconnexion', 'Quitter l\'espace administrateur ?', [
-      { text: 'Annuler', style: 'cancel' },
-      {
-        text: 'Se déconnecter',
-        style: 'destructive',
-        onPress: async () => {
-          await deconnexion();
-          router.replace('/auth/login');
-        },
+    showAlert({
+      title: 'Déconnexion',
+      message: 'Quitter l\'espace administrateur ?',
+      type: 'warning',
+      confirmText: 'Se déconnecter',
+      onConfirm: async () => {
+        await deconnexion();
+        router.replace('/auth/login');
       },
-    ]);
+    });
   };
 
   const MenuItem = ({ icon, label, value, color, onPress }) => (
     <TouchableOpacity style={styles.menuItem} onPress={onPress} activeOpacity={onPress ? 0.7 : 1} disabled={!onPress}>
-      <View style={[styles.menuIcon, { backgroundColor: (color || '#FF6B35') + '18' }]}>
-        <Ionicons name={icon} size={20} color={color || '#FF6B35'} />
+      <View style={[styles.menuIcon, { backgroundColor: (color || COLORS.primary) + '15' }]}>
+        <Ionicons name={icon} size={20} color={color || COLORS.primary} />
       </View>
       <View style={styles.menuContent}>
         <Text style={styles.menuLabel}>{label}</Text>
         {value && <Text style={styles.menuValue}>{value}</Text>}
       </View>
-      {onPress && <Ionicons name="chevron-forward" size={16} color="#ccc" />}
+      {onPress && <Ionicons name="chevron-forward" size={16} color={COLORS.text.disabled} />}
     </TouchableOpacity>
   );
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
-    <View style={styles.containt}>
-      <StatusBar barStyle="light-content" backgroundColor="#FF6B35" />
-      <ScrollView showsVerticalScrollIndicator={false}>
+      <StatusBar barStyle="light-content" backgroundColor={COLORS.primary} />
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scroll}>
 
         {/* Header admin */}
         <View style={styles.header}>
           <View style={styles.avatar}>
-            <Ionicons name="shield-checkmark" size={36} color="#FF6B35" />
+            <Ionicons name="shield-checkmark" size={40} color={COLORS.primary} />
           </View>
           <Text style={styles.nom}>{user?.nom_user}</Text>
           <View style={styles.adminBadge}>
-            <Ionicons name="shield-checkmark" size={13} color="#FF6B35" />
+            <Ionicons name="shield-checkmark" size={14} color={COLORS.primary} />
             <Text style={styles.adminBadgeText}>Administrateur</Text>
           </View>
         </View>
@@ -67,7 +68,7 @@ export default function AdminCompte() {
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Gestion</Text>
           <View style={styles.card}>
-            <MenuItem icon="grid-outline"       label="Tableau de bord"  color="#FF6B35" onPress={() => router.push('/admin')} />
+            <MenuItem icon="grid-outline"       label="Tableau de bord"  color={COLORS.primary} onPress={() => router.push('/admin')} />
             <View style={styles.divider} />
             <MenuItem icon="receipt-outline"    label="Commandes"        color="#2196F3" onPress={() => router.push('/admin/commandes')} />
             <View style={styles.divider} />
@@ -77,47 +78,34 @@ export default function AdminCompte() {
           </View>
         </View>
 
-        {/* Infos app */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Application</Text>
-          <View style={styles.card}>
-            <MenuItem icon="information-circle-outline" label="Version" value="1.1.0 — Admin" color="#888" />
-            <View style={styles.divider} />
-            <MenuItem icon="code-slash-outline" label="Développé par" value="Yokomi Beyea J. & Mbanga David" color="#888" />
-          </View>
-        </View>
-
         <TouchableOpacity style={styles.btnDeconnexion} onPress={handleDeconnexion}>
           <Ionicons name="log-out-outline" size={20} color="#fff" />
           <Text style={styles.btnDeconnexionText}>Se déconnecter</Text>
         </TouchableOpacity>
-
-        <View style={{ height: 30 }} />
       </ScrollView>
-      </View>
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#FF6B35' },
-  containt: {flex: 1, backgroundColor: 'white'},
-  header: { alignItems: 'center', paddingVertical: 32, backgroundColor: '#1a1a1a', marginBottom: 20 },
-  avatar: { width: 86, height: 86, borderRadius: 43, backgroundColor: '#FF6B3520', alignItems: 'center', justifyContent: 'center', marginBottom: 12, borderWidth: 2, borderColor: '#FF6B3540' },
-  nom: { fontSize: 22, fontWeight: '800', color: '#fff', marginBottom: 8 },
-  adminBadge: { flexDirection: 'row', alignItems: 'center', gap: 5, backgroundColor: '#FF6B3520', borderRadius: 20, paddingHorizontal: 12, paddingVertical: 5, borderWidth: 1, borderColor: '#FF6B3540' },
-  adminBadgeText: { color: '#FF6B35', fontSize: 12, fontWeight: '700' },
+  container: { flex: 1, backgroundColor: COLORS.background },
+  scroll: { paddingBottom: SPACING.xl },
+  header: { alignItems: 'center', paddingVertical: SPACING.xxl, backgroundColor: COLORS.text.primary },
+  avatar: { width: 90, height: 90, borderRadius: RADIUS.full, backgroundColor: COLORS.surface, alignItems: 'center', justifyContent: 'center', marginBottom: SPACING.md, ...SHADOWS.medium },
+  nom: { fontSize: 24, fontWeight: '800', color: '#fff', marginBottom: SPACING.sm },
+  adminBadge: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: COLORS.primary + '20', borderRadius: RADIUS.full, paddingHorizontal: SPACING.md, paddingVertical: 6, borderWidth: 1, borderColor: COLORS.primary + '40' },
+  adminBadgeText: { color: COLORS.primary, fontSize: 13, fontWeight: '700' },
 
-  section: { paddingHorizontal: 16, marginBottom: 16 },
-  sectionTitle: { fontSize: 11, fontWeight: '800', color: '#aaa', textTransform: 'uppercase', letterSpacing: 1.2, marginBottom: 8 },
-  card: { backgroundColor: '#fff', borderRadius: 16, overflow: 'hidden', shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.05, shadowRadius: 8, elevation: 2 },
-  menuItem: { flexDirection: 'row', alignItems: 'center', padding: 14, gap: 12 },
-  menuIcon: { width: 40, height: 40, borderRadius: 11, alignItems: 'center', justifyContent: 'center' },
+  section: { paddingHorizontal: SPACING.md, marginTop: SPACING.lg },
+  sectionTitle: { fontSize: 12, fontWeight: '800', color: COLORS.text.secondary, textTransform: 'uppercase', letterSpacing: 1.5, marginBottom: SPACING.sm },
+  card: { backgroundColor: COLORS.surface, borderRadius: RADIUS.lg, overflow: 'hidden', ...SHADOWS.light },
+  menuItem: { flexDirection: 'row', alignItems: 'center', padding: SPACING.md, gap: SPACING.md },
+  menuIcon: { width: 44, height: 44, borderRadius: RADIUS.md, alignItems: 'center', justifyContent: 'center' },
   menuContent: { flex: 1 },
-  menuLabel: { fontSize: 14, fontWeight: '600', color: '#1a1a1a' },
-  menuValue: { fontSize: 12, color: '#888', marginTop: 2 },
-  divider: { height: 1, backgroundColor: '#f2f2f2', marginLeft: 66 },
+  menuLabel: { fontSize: 15, fontWeight: '600', color: COLORS.text.primary },
+  menuValue: { fontSize: 13, color: COLORS.text.secondary, marginTop: 2 },
+  divider: { height: 1, backgroundColor: COLORS.border, marginLeft: 72 },
 
-  btnDeconnexion: { marginHorizontal: 16, backgroundColor: '#f44336', borderRadius: 14, height: 52, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10, shadowColor: '#f44336', shadowOffset: { width: 0, height: 3 }, shadowOpacity: 0.25, shadowRadius: 8, elevation: 4 },
-  btnDeconnexionText: { color: '#fff', fontSize: 16, fontWeight: '700' },
+  btnDeconnexion: { marginHorizontal: SPACING.md, marginTop: SPACING.xl, backgroundColor: COLORS.error, borderRadius: RADIUS.lg, height: 56, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10, ...SHADOWS.medium },
+  btnDeconnexionText: { color: '#fff', fontSize: 17, fontWeight: '700' },
 });

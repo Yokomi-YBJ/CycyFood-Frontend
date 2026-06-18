@@ -50,7 +50,7 @@ Les frais de livraison, lorsqu'applicable, sont clairement indiqués avant la va
 
 La livraison est effectuée à l'adresse indiquée lors de la commande. En cas d'absence à l'adresse de livraison, LaTchop décline toute responsabilité pour les retards qui en découleraient.
 
-Cycy-Food limite ses services de livraison aux quartiers desservis de Ngaoundéré (arrondissements 1, 2 et 3).`,
+LaTchop limite ses services de livraison aux quartiers desservis de Ngaoundéré (arrondissements 1, 2 et 3).`,
   },
   {
     titre: '6. Droit de rétractation et réclamations',
@@ -58,21 +58,21 @@ Cycy-Food limite ses services de livraison aux quartiers desservis de Ngaoundér
 
 Toute réclamation relative à une commande doit être formulée dans un délai de 30 minutes suivant la réception, via la fonction de contact WhatsApp disponible dans l'Application.
 
-Cycy-Food s'engage à traiter toute réclamation dans un délai raisonnable et à proposer une solution adaptée (remplacement, avoir ou remboursement selon les cas).`,
+LaTchop s'engage à traiter toute réclamation dans un délai raisonnable et à proposer une solution adaptée (remplacement, avoir ou remboursement selon les cas).`,
   },
   {
     titre: '7. Propriété intellectuelle',
-    contenu: `L'ensemble des éléments de l'Application (logos, textes, graphiques, images, interface, code source) est protégé par les droits de propriété intellectuelle et appartient exclusivement à Cycy-Food ou fait l'objet d'une licence d'utilisation accordée à Cycy-Food.
+    contenu: `L'ensemble des éléments de l'Application (logos, textes, graphiques, images, interface, code source) est protégé par les droits de propriété intellectuelle et appartient exclusivement à LaTchop ou fait l'objet d'une licence d'utilisation accordée à LaTchop.
 
-Toute reproduction, représentation, modification, publication ou adaptation de tout ou partie des éléments de l'Application, quel que soit le moyen ou le procédé utilisé, est strictement interdite sans autorisation écrite préalable de Cycy-Food.`,
+Toute reproduction, représentation, modification, publication ou adaptation de tout ou partie des éléments de l'Application, quel que soit le moyen ou le procédé utilisé, est strictement interdite sans autorisation écrite préalable de LaTchop.`,
   },
   {
     titre: '8. Responsabilité',
-    contenu: `Cycy-Food s'efforce d'assurer la disponibilité et le bon fonctionnement de l'Application, mais ne peut garantir une disponibilité ininterrompue. Des interruptions temporaires peuvent survenir pour des raisons de maintenance ou d'incidents techniques.
+    contenu: `LaTchop s'efforce d'assurer la disponibilité et le bon fonctionnement de l'Application, mais ne peut garantir une disponibilité ininterrompue. Des interruptions temporaires peuvent survenir pour des raisons de maintenance ou d'incidents techniques.
 
-Cycy-Food ne saurait être tenu responsable des dommages indirects résultant de l'utilisation ou de l'impossibilité d'utiliser l'Application, sous réserve des dispositions légales impératives applicables.
+LaTchop ne saurait être tenu responsable des dommages indirects résultant de l'utilisation ou de l'impossibilité d'utiliser l'Application, sous réserve des dispositions légales impératives applicables.
 
-La responsabilité de Cycy-Food est limitée au montant de la commande concernée en cas de préjudice direct avéré.`,
+La responsabilité de LaTchop est limitée au montant de la commande concernée en cas de préjudice direct avéré.`,
   },
   {
     titre: '9. Protection des données personnelles',
@@ -125,12 +125,12 @@ export default function CGUScreen() {
 
         <View style={styles.heroBanner}>
           <Ionicons name="document-text" size={32} color="#2196F3" />
-          <Text style={styles.heroTitle}>CGU — Cycy-Food</Text>
+          <Text style={styles.heroTitle}>CGU — LaTchop</Text>
           <Text style={styles.heroSub}>En vigueur depuis mars 2026 · Version 1.0</Text>
         </View>
 
         <Text style={styles.intro}>
-          Veuillez lire attentivement les conditions ci-dessous avant d'utiliser l'application. Elles constituent un contrat juridiquement contraignant entre vous et Cycy-Food.
+          Veuillez lire attentivement les conditions ci-dessous avant d'utiliser l'application. Elles constituent un contrat juridiquement contraignant entre vous et LaTchop.
         </Text>
 
         {SECTIONS.map((s, i) => (
@@ -155,7 +155,7 @@ export default function CGUScreen() {
 
         <View style={styles.footer}>
           <Text style={styles.footerText}>
-            En utilisant Cycy-Food, vous confirmez avoir lu et accepté l'intégralité de ces conditions.
+            En utilisant LaTchop, vous confirmez avoir lu et accepté l'intégralité de ces conditions.
           </Text>
         </View>
 

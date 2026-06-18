@@ -7,11 +7,6 @@
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
     "newArchEnabled": true,
-    "splash": {
-      "image": "./assets/splash.png",
-      "resizeMode": "cover",
-      "backgroundColor": "#C04B1E"
-    },
     "notification": {
       "icon": "./assets/notification-icon.png",
       "color": "#C04B1E",
