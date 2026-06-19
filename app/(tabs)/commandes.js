@@ -148,8 +148,9 @@ export default function CommandesScreen() {
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
+    <View style={{ flex: 1, backgroundColor: COLORS.background }}>
 
-        <StatusBar style="dark" backgroundColor="transparent" translucent={true} />
+        <StatusBar style="light" backgroundColor="transparent" translucent={true} />
 
       {/* Header */}
       <View style={styles.header}>
@@ -227,12 +228,13 @@ export default function CommandesScreen() {
           }
         />
       )}
+      </View>
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: COLORS.background },
+  container: { flex: 1, backgroundColor: COLORS.primary },
 
   header: {
     flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end',

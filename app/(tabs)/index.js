@@ -46,6 +46,7 @@ export default function HomeScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [addedIds, setAddedIds] = useState({});
+  const [imageErrors, setImageErrors] = useState({});
 
   const headerAnim = useRef(new Animated.Value(0)).current;
 
@@ -88,13 +89,19 @@ export default function HomeScreen() {
     }, 1400);
   };
 
+  const handleImageError = (productId, section) => {
+    const key = `${section}-${productId}`;
+    setImageErrors(prev => ({ ...prev, [key]: true }));
+  };
+
   const heure = new Date().getHours();
   const salutation = heure < 6 ? 'Bonne nuit' : heure < 12 ? 'Bonjour' : heure < 18 ? 'Bon après-midi' : 'Bonsoir';
   const salutIcon = heure < 12 ? '☀️' : heure < 18 ? '🌤️' : '🌙';
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
-     <StatusBar style="dark" backgroundColor="transparent" translucent={true} />
+    <View style={{ flex: 1, backgroundColor: COLORS.background }}>
+     <StatusBar style="light" backgroundColor={COLORS.primary} translucent={false} />
 
       <ScrollView
         showsVerticalScrollIndicator={false}
@@ -196,19 +203,30 @@ export default function HomeScreen() {
             showsHorizontalScrollIndicator={false}
             contentContainerStyle={styles.specialitesRow}
           >
-            {produits.map(p => (
-              <View key={p.id_produit} style={styles.specialiteCard}>
-                <Image
-                  source={{ uri: p.img_url }}
-                  style={styles.specialiteImg}
-                  defaultSource={require('../../assets/placeholder.png')}
-                />
-                <View style={styles.specialiteOverlay} />
-                <View style={styles.specialiteInfo}>
-                  <Text style={styles.specialiteNom} numberOfLines={1}>{p.nom_produit}</Text>
+            {produits.map(p => {
+              const hasImageError = imageErrors[`specialite-${p.id_produit}`];
+              return (
+                <View key={p.id_produit} style={styles.specialiteCard}>
+                  {hasImageError || !p.img_url ? (
+                    <View style={styles.specialiteImageFallback}>
+                      <Ionicons name="restaurant-outline" size={32} color={COLORS.text.disabled} />
+                    </View>
+                  ) : (
+                    <>
+                      <Image
+                        source={{ uri: p.img_url }}
+                        style={styles.specialiteImg}
+                        onError={() => handleImageError(p.id_produit, 'specialite')}
+                      />
+                      <View style={styles.specialiteOverlay} />
+                    </>
+                  )}
+                  <View style={styles.specialiteInfo}>
+                    <Text style={styles.specialiteNom} numberOfLines={1}>{p.nom_produit}</Text>
+                  </View>
                 </View>
-              </View>
-            ))}
+              );
+            })}
           </ScrollView>
         )}
 
@@ -229,14 +247,21 @@ export default function HomeScreen() {
           <View style={styles.grid}>
             {produits.map(p => {
               const isAdded = addedIds[p.id_produit];
+              const hasImageError = imageErrors[`produit-${p.id_produit}`];
               return (
                 <View key={p.id_produit} style={styles.produitCard}>
                   <View style={styles.produitImgWrap}>
-                    <Image
-                      source={{ uri: p.img_url }}
-                      style={styles.produitImg}
-                      defaultSource={require('../../assets/placeholder.png')}
-                    />
+                    {hasImageError || !p.img_url ? (
+                      <View style={styles.produitImageFallback}>
+                        <Ionicons name="restaurant-outline" size={40} color={COLORS.text.disabled} />
+                      </View>
+                    ) : (
+                      <Image
+                        source={{ uri: p.img_url }}
+                        style={styles.produitImg}
+                        onError={() => handleImageError(p.id_produit, 'produit')}
+                      />
+                    )}
                     <View style={styles.priceBadge}>
                       <Text style={styles.priceText}>{p.Prix} F</Text>
                     </View>
@@ -273,12 +298,14 @@ export default function HomeScreen() {
 
         <View style={{ height: 20 }} />
       </ScrollView>
+      
+    </View>
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: COLORS.background },
+  container: { flex: 1, backgroundColor: COLORS.primary },
 
   // Header
   header: {
@@ -424,6 +451,11 @@ const styles = StyleSheet.create({
     ...SHADOWS.light,
   },
   specialiteImg: { width: '100%', height: '100%' },
+  specialiteImageFallback: {
+    width: '100%', height: '100%',
+    backgroundColor: COLORS.background,
+    alignItems: 'center', justifyContent: 'center',
+  },
   specialiteOverlay: {
     ...StyleSheet.absoluteFillObject,
     backgroundColor: 'rgba(0,0,0,0.28)',
@@ -453,6 +485,11 @@ const styles = StyleSheet.create({
   },
   produitImgWrap: { position: 'relative' },
   produitImg: { width: '100%', height: 140 },
+  produitImageFallback: {
+    width: '100%', height: 140,
+    backgroundColor: COLORS.background,
+    alignItems: 'center', justifyContent: 'center',
+  },
   priceBadge: {
     position: 'absolute', top: 10, right: 10,
     backgroundColor: COLORS.primary,

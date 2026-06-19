@@ -4,7 +4,7 @@ import {
   View, Text, TextInput, TouchableOpacity,
   StyleSheet, KeyboardAvoidingView, Platform,
   ScrollView, ActivityIndicator, Image,
-  StatusBar, Dimensions, Animated,
+  StatusBar, Dimensions, Animated, Keyboard,
 } from 'react-native';
 import { useRouter, Link } from 'expo-router';
 import { useAuth } from '../../context/AuthContext';
@@ -19,22 +19,34 @@ export default function LoginScreen() {
   const { connexion } = useAuth();
   const { showAlert } = useAlert();
   const [telephone, setTelephone] = useState('');
-  const [password, setPassword]   = useState('');
+  const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
-  const [loading, setLoading]     = useState(false);
-  const [focused, setFocused]     = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [focused, setFocused] = useState(null);
 
-  const cardAnim = useRef(new Animated.Value(60)).current;
-  const cardOp   = useRef(new Animated.Value(0)).current;
+  const passwordRef = useRef(null);
+  const cardAnim = useRef(new Animated.Value(40)).current;
+  const cardOp = useRef(new Animated.Value(0)).current;
+  const scaleAnim = useRef(new Animated.Value(1)).current;
 
   React.useEffect(() => {
     Animated.parallel([
-      Animated.timing(cardAnim, { toValue: 0, duration: 500, useNativeDriver: true }),
-      Animated.timing(cardOp, { toValue: 1, duration: 500, useNativeDriver: true }),
+      Animated.timing(cardAnim, { toValue: 0, duration: 600, useNativeDriver: true }),
+      Animated.timing(cardOp, { toValue: 1, duration: 600, useNativeDriver: true }),
     ]).start();
   }, []);
 
+  const handlePressIn = () => {
+    Animated.timing(scaleAnim, { toValue: 0.97, duration: 100, useNativeDriver: true }).start();
+  };
+
+  const handlePressOut = () => {
+    Animated.timing(scaleAnim, { toValue: 1, duration: 100, useNativeDriver: true }).start();
+  };
+
   const handleConnexion = async () => {
+    Keyboard.dismiss();
+    
     if (!telephone || !password) {
       showAlert({ title: 'Champs manquants', message: 'Veuillez remplir tous les champs.', type: 'warning' });
       return;
@@ -43,6 +55,7 @@ export default function LoginScreen() {
       showAlert({ title: 'Téléphone invalide', message: 'Le numéro doit contenir 9 chiffres.', type: 'error' });
       return;
     }
+    
     setLoading(true);
     try {
       const data = await connexion(telephone, password);
@@ -62,12 +75,15 @@ export default function LoginScreen() {
     }
   };
 
+  const telephoneValide = telephone.length === 9;
+  const telephoneInvalide = telephone.length > 0 && telephone.length !== 9;
+
   return (
     <View style={s.container}>
-      <StatusBar barStyle="light-content" />
+      <StatusBar barStyle="light-content" backgroundColor={COLORS.primary} />
 
       {/* ── Fond dégradé avec formes déco ─────────────── */}
-      <View style={s.bg}>
+      <View style={s.bg} pointerEvents="none">
         <View style={s.bgCircle1} />
         <View style={s.bgCircle2} />
         <View style={s.bgWave} />
@@ -75,7 +91,8 @@ export default function LoginScreen() {
 
       <KeyboardAvoidingView
         style={s.kav}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
       >
         <ScrollView
           contentContainerStyle={s.scroll}
@@ -97,17 +114,35 @@ export default function LoginScreen() {
           {/* ── Card de connexion ──────────────────────── */}
           <Animated.View style={[s.card, {
             opacity: cardOp,
-            transform: [{ translateY: cardAnim }],
+            transform: [
+              { translateY: cardAnim },
+              { scale: scaleAnim }
+            ],
           }]}>
-            <Text style={s.cardTitle}>Bienvenue !</Text>
-            <Text style={s.cardSubtitle}>Connectez-vous pour continuer</Text>
+            <View style={s.cardHeader}>
+              <Text style={s.cardTitle}>Bienvenue !</Text>
+              <Text style={s.cardSubtitle}>Connectez-vous pour continuer</Text>
+            </View>
 
             {/* Téléphone */}
             <View style={s.fieldGroup}>
               <Text style={s.fieldLabel}>Numéro de téléphone</Text>
-              <View style={[s.fieldRow, focused === 'tel' && s.fieldRowFocused]}>
+              <View style={[
+                s.fieldRow,
+                focused === 'tel' && s.fieldRowFocused,
+                telephoneInvalide && s.fieldRowError,
+                telephoneValide && focused !== 'tel' && s.fieldRowSuccess,
+              ]}>
                 <View style={s.fieldIconWrap}>
-                  <Ionicons name="call" size={18} color={focused === 'tel' ? COLORS.primary : COLORS.text.disabled} />
+                  <Ionicons 
+                    name={focused === 'tel' ? "call" : "call-outline"} 
+                    size={20} 
+                    color={
+                      telephoneInvalide ? COLORS.error :
+                      telephoneValide ? COLORS.success :
+                      focused === 'tel' ? COLORS.primary : COLORS.text.disabled
+                    } 
+                  />
                 </View>
                 <TextInput
                   style={s.fieldInput}
@@ -119,12 +154,21 @@ export default function LoginScreen() {
                   onChangeText={setTelephone}
                   onFocus={() => setFocused('tel')}
                   onBlur={() => setFocused(null)}
+                  onSubmitEditing={() => passwordRef.current?.focus()}
+                  returnKeyType="next"
                   autoCorrect={false}
                 />
-                {telephone.length === 9 && (
-                  <Ionicons name="checkmark-circle" size={18} color={COLORS.success} />
+                {telephoneValide && (
+                  <Animated.View style={s.checkIcon}>
+                    <Ionicons name="checkmark-circle" size={20} color={COLORS.success} />
+                  </Animated.View>
                 )}
               </View>
+              {telephoneInvalide && (
+                <Text style={s.fieldError}>
+                  {telephone.length}/9 chiffres - Le numéro doit contenir 9 chiffres
+                </Text>
+              )}
             </View>
 
             {/* Mot de passe */}
@@ -132,9 +176,14 @@ export default function LoginScreen() {
               <Text style={s.fieldLabel}>Mot de passe</Text>
               <View style={[s.fieldRow, focused === 'pass' && s.fieldRowFocused]}>
                 <View style={s.fieldIconWrap}>
-                  <Ionicons name="lock-closed" size={18} color={focused === 'pass' ? COLORS.primary : COLORS.text.disabled} />
+                  <Ionicons 
+                    name={focused === 'pass' ? "lock-closed" : "lock-closed-outline"} 
+                    size={20} 
+                    color={focused === 'pass' ? COLORS.primary : COLORS.text.disabled} 
+                  />
                 </View>
                 <TextInput
+                  ref={passwordRef}
                   style={s.fieldInput}
                   placeholder="Votre mot de passe"
                   placeholderTextColor={COLORS.text.disabled}
@@ -143,12 +192,18 @@ export default function LoginScreen() {
                   onChangeText={setPassword}
                   onFocus={() => setFocused('pass')}
                   onBlur={() => setFocused(null)}
+                  onSubmitEditing={handleConnexion}
+                  returnKeyType="done"
                   autoCorrect={false}
                 />
-                <TouchableOpacity onPress={() => setShowPassword(!showPassword)} style={s.eyeBtn}>
+                <TouchableOpacity 
+                  onPress={() => setShowPassword(!showPassword)} 
+                  style={s.eyeBtn}
+                  hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                >
                   <Ionicons
-                    name={showPassword ? 'eye-off' : 'eye'}
-                    size={18}
+                    name={showPassword ? 'eye-off-outline' : 'eye-outline'}
+                    size={20}
                     color={COLORS.text.disabled}
                   />
                 </TouchableOpacity>
@@ -159,19 +214,27 @@ export default function LoginScreen() {
             <TouchableOpacity
               style={[s.btnLogin, loading && { opacity: 0.7 }]}
               onPress={handleConnexion}
+              onPressIn={handlePressIn}
+              onPressOut={handlePressOut}
               disabled={loading}
               activeOpacity={0.85}
             >
-              {loading
-                ? <ActivityIndicator color="#fff" />
-                : (
-                  <>
-                    <Text style={s.btnLoginText}>Se connecter</Text>
-                    <Ionicons name="arrow-forward-circle" size={20} color="rgba(255,255,255,0.7)" />
-                  </>
-                )
-              }
+              {loading ? (
+                <ActivityIndicator color="#fff" size="small" />
+              ) : (
+                <>
+                  <Text style={s.btnLoginText}>Se connecter</Text>
+                  <Ionicons name="arrow-forward" size={18} color="rgba(255,255,255,0.9)" />
+                </>
+              )}
             </TouchableOpacity>
+
+            {/* Séparateur */}
+            <View style={s.separator}>
+              <View style={s.separatorLine} />
+              <Text style={s.separatorText}>OU</Text>
+              <View style={s.separatorLine} />
+            </View>
 
             {/* Lien inscription */}
             <View style={s.signupRow}>
@@ -183,6 +246,7 @@ export default function LoginScreen() {
               </Link>
             </View>
           </Animated.View>
+
         </ScrollView>
       </KeyboardAvoidingView>
     </View>
@@ -220,24 +284,19 @@ const s = StyleSheet.create({
 
   brandArea: {
     alignItems: 'center',
-    paddingTop: height * 0.1,
-    paddingBottom: SPACING.xxl,
+    paddingTop: height * 0.08,
+    paddingBottom: SPACING.xl,
   },
   logoBox: {
-    width: 90, height: 90, borderRadius: RADIUS.xl,
-    backgroundColor: '#e262178f', alignItems: 'center', justifyContent: 'center',
-    marginBottom: SPACING.md,
-    ...SHADOWS.heavy,
-    padding: 8,
+    width: 120, height: 120, borderRadius: RADIUS.xl,
+    backgroundColor: 'transparent', alignItems: 'center', justifyContent: 'center',
+    marginBottom: SPACING.sm,
+    padding: 0,
   },
   logoImg: { width: '100%', height: '100%' },
-  brandName: {
-    fontSize: 38, fontWeight: '900', color: '#fff',
-    letterSpacing: -1, marginBottom: 4,
-  },
   brandTagline: {
-    fontSize: 14, color: 'rgba(255,255,255,0.75)',
-    fontWeight: '500', letterSpacing: 0.5,
+    fontSize: 13, color: 'rgba(255,255,255,0.8)',
+    fontWeight: '600', letterSpacing: 0.5,
   },
 
   card: {
@@ -245,15 +304,17 @@ const s = StyleSheet.create({
     borderRadius: 32,
     padding: SPACING.xl,
     marginHorizontal: SPACING.md,
-    ...SHADOWS.heavy,
+    ...SHADOWS.medium,
+  },
+  cardHeader: {
+    marginBottom: SPACING.lg,
   },
   cardTitle: {
-    fontSize: 26, fontWeight: '900', color: COLORS.text.primary,
+    fontSize: 24, fontWeight: '900', color: COLORS.text.primary,
     letterSpacing: -0.5, marginBottom: 4,
   },
   cardSubtitle: {
     fontSize: 14, color: COLORS.text.secondary,
-    marginBottom: SPACING.xl,
   },
 
   fieldGroup: { marginBottom: SPACING.md },
@@ -272,27 +333,63 @@ const s = StyleSheet.create({
     borderColor: COLORS.primary,
     backgroundColor: COLORS.primary + '06',
   },
+  fieldRowError: {
+    borderColor: COLORS.error,
+    backgroundColor: COLORS.error + '06',
+  },
+  fieldRowSuccess: {
+    borderColor: COLORS.success,
+    backgroundColor: COLORS.success + '06',
+  },
   fieldIconWrap: {
     width: 50, alignItems: 'center', justifyContent: 'center',
   },
   fieldInput: { flex: 1, fontSize: 16, color: COLORS.text.primary, height: 54 },
+  fieldError: {
+    fontSize: 11, color: COLORS.error, marginTop: 4, fontWeight: '600',
+    marginLeft: 4,
+  },
+  checkIcon: {
+    width: 30, alignItems: 'center', justifyContent: 'center',
+  },
   eyeBtn: { padding: 6 },
 
   btnLogin: {
     backgroundColor: COLORS.primary,
     borderRadius: RADIUS.md, height: 56,
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
-    marginTop: SPACING.sm,
+    marginTop: SPACING.lg,
     shadowColor: COLORS.primary,
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.35, shadowRadius: 12, elevation: 8,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.25, shadowRadius: 8, elevation: 6,
   },
-  btnLoginText: { fontSize: 17, fontWeight: '800', color: '#fff' },
+  btnLoginText: { fontSize: 16, fontWeight: '800', color: '#fff' },
+
+  separator: {
+    flexDirection: 'row', alignItems: 'center',
+    marginVertical: SPACING.lg,
+  },
+  separatorLine: {
+    flex: 1, height: 1, backgroundColor: COLORS.border,
+  },
+  separatorText: {
+    paddingHorizontal: SPACING.md, fontSize: 12,
+    color: COLORS.text.disabled, fontWeight: '600',
+  },
 
   signupRow: {
     flexDirection: 'row', justifyContent: 'center',
-    alignItems: 'center', marginTop: SPACING.lg,
+    alignItems: 'center',
   },
   signupText: { fontSize: 14, color: COLORS.text.secondary },
   signupLink: { fontSize: 14, color: COLORS.primary, fontWeight: '800' },
+
+  footer: {
+    alignItems: 'center',
+    paddingTop: SPACING.lg,
+    paddingBottom: SPACING.md,
+  },
+  footerText: {
+    fontSize: 11, color: COLORS.text.disabled,
+  },
 });

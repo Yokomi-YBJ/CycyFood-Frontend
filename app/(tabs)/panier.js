@@ -5,7 +5,7 @@ import {
   Image, ActivityIndicator,
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useSafeAreaInsets, SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useCart } from '../../context/CartContext';
 import { useAuth } from '../../context/AuthContext';
@@ -106,8 +106,8 @@ export default function PanierScreen() {
   );
 
   return (
-    <View style={styles.container}>
-     <StatusBar style="dark" backgroundColor="transparent" translucent={true} />
+    <SafeAreaView style={styles.container} edges={['top']}>
+     <StatusBar style="light" backgroundColor={COLORS.primary} />
       <View style={[styles.content, { paddingTop: insets.top + 8 }]}>
 
         {/* Header */}
@@ -127,7 +127,7 @@ export default function PanierScreen() {
         {cart.length === 0 ? (
           <View style={styles.empty}>
             <View style={styles.emptyIconWrap}>
-              <Ionicons name="bag-outline" size={56} color={COLORS.text.disabled} />
+              <Ionicons name="cart-outline" size={56} color={COLORS.text.disabled} />
             </View>
             <Text style={styles.emptyTitle}>Panier vide</Text>
             <Text style={styles.emptyText}>
@@ -208,13 +208,13 @@ export default function PanierScreen() {
           </>
         )}
       </View>
-    </View>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: COLORS.background },
-  content: { flex: 1 },
+  container: { flex: 1, backgroundColor: COLORS.primary },
+  content: { flex: 1 , backgroundColor: COLORS.background},
 
   header: {
     flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end',

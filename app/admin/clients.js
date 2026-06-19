@@ -122,6 +122,7 @@ export default function AdminClients() {
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
+      <View style={{ flex: 1, backgroundColor: COLORS.background }} >
       <StatusBar barStyle="light-content" backgroundColor={COLORS.primary} />
       <View style={styles.header}>
         <Text style={styles.headerTitle}>Clients</Text>
@@ -161,12 +162,13 @@ export default function AdminClients() {
             }
           />
       }
+      </View>
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: COLORS.background },
+  container: { flex: 1, backgroundColor: COLORS.primary },
   header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: SPACING.md, backgroundColor: COLORS.surface, borderBottomWidth: 1, borderBottomColor: COLORS.border },
   headerTitle: { fontSize: 24, fontWeight: '800', color: COLORS.text.primary },
   headerCount: { fontSize: 14, color: COLORS.text.secondary, fontWeight: '600' },

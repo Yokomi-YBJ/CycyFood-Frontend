@@ -1,7 +1,7 @@
 // app/(tabs)/_layout.js
 import { Tabs, usePathname } from 'expo-router';
 import { View, Text, StyleSheet } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useCart } from '../../context/CartContext';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Notifications from 'expo-notifications';
@@ -29,8 +29,8 @@ function CartIcon({ color, size, focused }) {
   const { totalArticles } = useCart();
   return (
     <View>
-      <Ionicons
-        name={focused ? 'bag' : 'bag-outline'}
+      <MaterialCommunityIcons
+        name={focused ? 'shopping' : 'shopping-outline'}
         size={size}
         color={color}
       />

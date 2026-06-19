@@ -1,18 +1,20 @@
 // app/auth/signup.js
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
-  View, Text, TextInput, TouchableOpacity,
-  StyleSheet, KeyboardAvoidingView, Platform,
-  ScrollView, ActivityIndicator, StatusBar,
-  Dimensions, Modal, Animated,
+  View, Text, TextInput, TouchableOpacity, StyleSheet,
+  KeyboardAvoidingView, Platform, ScrollView, ActivityIndicator,
+  Modal, Animated, Dimensions, Linking, Image, Keyboard,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { StatusBar } from 'expo-status-bar';
 import { useRouter, Link } from 'expo-router';
-import { useAlert } from '../../context/AlertContext';
 import { useAuth } from '../../context/AuthContext';
+import { useAlert } from '../../context/AlertContext';
 import { Ionicons } from '@expo/vector-icons';
-import { COLORS, SPACING, RADIUS, SHADOWS } from '../../constants/theme';
+import { COLORS, SPACING, RADIUS, SHADOWS, TYPOGRAPHY } from '../../constants/theme';
 
-const { height } = Dimensions.get('window');
+const { width, height } = Dimensions.get('window');
+const URL_POLITIQUE = 'https://cycy-food-politique-de-confidential.vercel.app/';
 
 const QUARTIERS = [
   { label: 'Baladji', value: 'Baladji', arr: '1' },
@@ -47,227 +49,208 @@ const QUARTIERS = [
   { label: 'Wolordé', value: 'Wolordé', arr: '3' },
 ];
 
-// ── Étape indicateur ─────────────────────────────────────
-function StepIndicator({ current, total }) {
-  return (
-    <View style={si.row}>
-      {Array.from({ length: total }).map((_, i) => (
-        <View key={i} style={si.stepWrap}>
-          <View style={[si.dot, i < current && si.dotDone, i === current && si.dotActive]}>
-            {i < current
-              ? <Ionicons name="checkmark" size={10} color="#fff" />
-              : <Text style={[si.dotNum, i === current && si.dotNumActive]}>{i + 1}</Text>
-            }
-          </View>
-          {i < total - 1 && (
-            <View style={[si.line, i < current && si.lineDone]} />
-          )}
-        </View>
-      ))}
-    </View>
-  );
-}
-
-const si = StyleSheet.create({
-  row: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', marginBottom: SPACING.xl },
-  stepWrap: { flexDirection: 'row', alignItems: 'center' },
-  dot: {
-    width: 28, height: 28, borderRadius: 14,
-    backgroundColor: COLORS.border,
-    alignItems: 'center', justifyContent: 'center',
-  },
-  dotDone: { backgroundColor: COLORS.success },
-  dotActive: { backgroundColor: COLORS.primary },
-  dotNum: { fontSize: 12, fontWeight: '800', color: COLORS.text.disabled },
-  dotNumActive: { color: '#fff' },
-  line: { width: 32, height: 2, backgroundColor: COLORS.border, marginHorizontal: 4 },
-  lineDone: { backgroundColor: COLORS.success },
-});
-
-// ── Champ de saisie ──────────────────────────────────────
-function Field({ label, icon, error, hint, ...props }) {
-  return (
-    <View style={f.group}>
-      <Text style={f.label}>{label}</Text>
-      <View style={[f.row, error && f.rowError, props.value && !error && f.rowOk]}>
-        <Ionicons name={icon} size={18} color={COLORS.primary} style={f.icon} />
-        {props.inputEl ? props.inputEl : <TextInput style={f.input} placeholderTextColor={COLORS.text.disabled} {...props} />}
-      </View>
-      {error ? <Text style={f.errorTxt}>{error}</Text>
-             : hint ? <Text style={f.hintTxt}>{hint}</Text> : null}
-    </View>
-  );
-}
-
-const f = StyleSheet.create({
-  group: { marginBottom: SPACING.md },
-  label: { fontSize: 13, fontWeight: '700', color: COLORS.text.primary, marginBottom: 6 },
-  row: {
-    flexDirection: 'row', alignItems: 'center',
-    backgroundColor: COLORS.background,
-    borderWidth: 1.5, borderColor: COLORS.border,
-    borderRadius: RADIUS.md, paddingRight: SPACING.md, height: 54,
-  },
-  rowError: { borderColor: COLORS.error, backgroundColor: COLORS.error + '06' },
-  rowOk: { borderColor: COLORS.success + '80' },
-  icon: { marginHorizontal: SPACING.md },
-  input: { flex: 1, fontSize: 15, color: COLORS.text.primary, height: 54 },
-  errorTxt: { fontSize: 11, color: COLORS.error, marginTop: 4 },
-  hintTxt: { fontSize: 11, color: COLORS.text.disabled, marginTop: 4 },
-});
+const ETAPES = [
+  { titre: 'Qui êtes-vous ?', sous: 'Étape 1 sur 3', icon: 'person-outline' },
+  { titre: 'Où habitez-vous ?', sous: 'Étape 2 sur 3', icon: 'location-outline' },
+  { titre: 'Sécurisez votre compte', sous: 'Étape 3 sur 3', icon: 'lock-closed-outline' },
+];
 
 export default function SignupScreen() {
   const router = useRouter();
   const { inscription } = useAuth();
   const { showAlert } = useAlert();
-
-  const [step, setStep] = useState(0);
-  const [loading, setLoading] = useState(false);
-
-  // Étape 1
-  const [nom, setNom]         = useState('');
-  const [prenom, setPrenom]   = useState('');
-
-  // Étape 2
+  const [etape, setEtape] = useState(0);
+  const [nom, setNom] = useState('');
+  const [prenom, setPrenom] = useState('');
+  const [adresse, setAdresse] = useState('');
   const [telephone, setTelephone] = useState('');
-  const [adresse, setAdresse]     = useState('');
-  const [modalQ, setModalQ]       = useState(false);
+  const [password, setPassword] = useState('');
+  const [copassword, setCopassword] = useState('');
+  const [showPass, setShowPass] = useState(false);
+  const [showCoPass, setShowCoPass] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [modalVisible, setModalVisible] = useState(false);
   const [recherche, setRecherche] = useState('');
+  const [acceptePolitique, setAcceptePolitique] = useState(false);
+  const [focused, setFocused] = useState(null);
 
-  // Étape 3
-  const [password, setPassword]     = useState('');
-  const [confirm, setConfirm]       = useState('');
-  const [showPass, setShowPass]     = useState(false);
-  const [showConf, setShowConf]     = useState(false);
+  const prenomRef = useRef(null);
+  const telRef = useRef(null);
+  const passRef = useRef(null);
+  const copassRef = useRef(null);
 
+  const cardAnim = useRef(new Animated.Value(40)).current;
+  const cardOp = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(0)).current;
+  const shakeAnim = useRef(new Animated.Value(0)).current;
+  const scaleAnim = useRef(new Animated.Value(1)).current;
 
-  const animateStep = (dir) => {
+  useEffect(() => {
+    Animated.parallel([
+      Animated.timing(cardAnim, { toValue: 0, duration: 600, useNativeDriver: true }),
+      Animated.timing(cardOp, { toValue: 1, duration: 600, useNativeDriver: true }),
+    ]).start();
+  }, []);
+
+  const animer = (direction) => {
     Animated.sequence([
-      Animated.timing(slideAnim, { toValue: dir * -30, duration: 120, useNativeDriver: true }),
-      Animated.timing(slideAnim, { toValue: 0, duration: 220, useNativeDriver: true }),
+      Animated.timing(slideAnim, {
+        toValue: direction === 'next' ? -30 : 30,
+        duration: 120,
+        useNativeDriver: true,
+      }),
+      Animated.timing(slideAnim, {
+        toValue: 0,
+        duration: 220,
+        useNativeDriver: true,
+      }),
     ]).start();
   };
 
-  const goNext = () => {
-    // Validation par étape
-    if (step === 0) {
-      if (!nom.trim() || !prenom.trim()) {
-        showAlert({ title: 'Champs requis', message: 'Veuillez renseigner votre nom et prénom.', type: 'warning' });
-        return;
-      }
-    } else if (step === 1) {
-      if (telephone.length !== 9) {
-        showAlert({ title: 'Téléphone invalide', message: 'Le numéro doit contenir exactement 9 chiffres.', type: 'error' });
-        return;
-      }
-      if (!adresse) {
-        showAlert({ title: 'Quartier requis', message: 'Veuillez sélectionner votre quartier.', type: 'warning' });
-        return;
-      }
-    }
-    animateStep(1);
-    setStep(s => s + 1);
+  const animerShake = () => {
+    Animated.sequence([
+      Animated.timing(shakeAnim, { toValue: 8, duration: 50, useNativeDriver: true }),
+      Animated.timing(shakeAnim, { toValue: -8, duration: 50, useNativeDriver: true }),
+      Animated.timing(shakeAnim, { toValue: 6, duration: 50, useNativeDriver: true }),
+      Animated.timing(shakeAnim, { toValue: -6, duration: 50, useNativeDriver: true }),
+      Animated.timing(shakeAnim, { toValue: 0, duration: 50, useNativeDriver: true }),
+    ]).start();
   };
 
-  const goBack = () => {
-    if (step === 0) { router.back(); return; }
-    animateStep(-1);
-    setStep(s => s - 1);
+  const handlePressIn = () => {
+    Animated.timing(scaleAnim, { toValue: 0.97, duration: 100, useNativeDriver: true }).start();
+  };
+
+  const handlePressOut = () => {
+    Animated.timing(scaleAnim, { toValue: 1, duration: 100, useNativeDriver: true }).start();
+  };
+
+  const quartiersFiltres = QUARTIERS.filter(q =>
+    q.label.toLowerCase().includes(recherche.toLowerCase())
+  );
+
+  const validerEtape = () => {
+    Keyboard.dismiss();
+    
+    if (etape === 0) {
+      if (!nom.trim()) return showAlert({ title: 'Champ requis', message: 'Veuillez entrer votre nom.', type: 'warning' });
+      if (!prenom.trim()) return showAlert({ title: 'Champ requis', message: 'Veuillez entrer votre prénom.', type: 'warning' });
+    }
+    if (etape === 1) {
+      if (!adresse) return showAlert({ title: 'Champ requis', message: 'Veuillez choisir votre quartier.', type: 'warning' });
+      if (!telephone || telephone.length !== 9) return showAlert({ title: 'Téléphone invalide', message: 'Le numéro doit contenir 9 chiffres.', type: 'error' });
+    }
+    
+    animer('next');
+    setEtape(e => e + 1);
+  };
+
+  const retour = () => {
+    animer('back');
+    setEtape(e => e - 1);
   };
 
   const handleInscription = async () => {
-    if (!password || password.length < 6) {
-      showAlert({ title: 'Mot de passe trop court', message: 'Au moins 6 caractères requis.', type: 'warning' });
+    Keyboard.dismiss();
+    
+    if (password.length < 6) return showAlert({ title: 'Mot de passe trop court', message: 'Minimum 6 caractères.', type: 'warning' });
+    if (password !== copassword) return showAlert({ title: 'Mots de passe différents', message: 'Les mots de passe ne correspondent pas.', type: 'error' });
+    if (!acceptePolitique) {
+      animerShake();
       return;
     }
-    if (password !== confirm) {
-      showAlert({ title: 'Mots de passe différents', message: 'Les deux mots de passe doivent correspondre.', type: 'error' });
-      return;
-    }
+
     setLoading(true);
     try {
-      const data = await inscription({ nom, prenom, telephone, adresse, password });
+      const data = await inscription({ nom, prenom, adresse, telephone, password, copassword });
       if (data.status === 'success') {
         showAlert({
           title: '🎉 Bienvenue !',
-          message: `Votre compte a été créé. Bonne commande, ${prenom} !`,
+          message: 'Votre compte a été créé avec succès.',
           type: 'success',
           onConfirm: () => router.replace('/(tabs)'),
         });
       } else {
         showAlert({ title: 'Erreur', message: data.message || 'Inscription échouée.', type: 'error' });
       }
-    } catch {
-      showAlert({ title: 'Connexion impossible', message: 'Vérifiez votre connexion internet.', type: 'error' });
+    } catch (e) {
+      showAlert({ title: 'Erreur réseau', message: 'Impossible de contacter le serveur.', type: 'error' });
     } finally {
       setLoading(false);
     }
+  };
+
+  const ouvrirPolitique = () => {
+    Linking.openURL(URL_POLITIQUE).catch(() => {
+      showAlert({ title: 'Erreur', message: "Impossible d'ouvrir la page. Vérifiez votre connexion internet.", type: 'error' });
+    });
   };
 
   const forceLevel = password.length < 4 ? 0 : password.length < 6 ? 1 : password.length < 9 ? 2 : 3;
   const forceColors = ['#EEE', COLORS.error, COLORS.warning, COLORS.success];
   const forceLabels = ['', 'Faible', 'Moyen', 'Fort'];
 
-  const quartiersF = QUARTIERS.filter(q =>
-    q.label.toLowerCase().includes(recherche.toLowerCase())
-  );
+  const telephoneValide = telephone.length === 9;
+  const telephoneInvalide = telephone.length > 0 && telephone.length !== 9;
+  const passwordsMatch = copassword.length > 0 && password === copassword;
+  const passwordsDiffer = copassword.length > 0 && password !== copassword;
 
   return (
-    <View style={s.container}>
-      <StatusBar barStyle="light-content" />
+    <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
+      <StatusBar style="light" backgroundColor={COLORS.primary} />
 
-      {/* Fond */}
-      <View style={s.bgTop} />
-      <View style={s.bgBottom} />
+      {/* ── Fond dégradé avec formes déco ── */}
+      <View style={styles.bg} pointerEvents="none">
+        <View style={styles.bgCircle1} />
+        <View style={styles.bgCircle2} />
+        <View style={styles.bgWave} />
+      </View>
 
-      {/* Modal quartier */}
-      <Modal visible={modalQ} animationType="slide" transparent>
-        <View style={s.modalOverlay}>
-          <View style={s.modalSheet}>
-            <View style={s.handle} />
-            <View style={s.modalHead}>
-              <Text style={s.modalTitle}>Choisir un quartier</Text>
-              <TouchableOpacity style={s.closeBtn} onPress={() => { setModalQ(false); setRecherche(''); }}>
+      {/* MODAL QUARTIERS */}
+      <Modal visible={modalVisible} animationType="slide" transparent>
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContainer}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Choisir un quartier</Text>
+              <TouchableOpacity 
+                onPress={() => { setModalVisible(false); setRecherche(''); }} 
+                style={styles.closeBtn}
+              >
                 <Ionicons name="close" size={20} color={COLORS.text.primary} />
               </TouchableOpacity>
             </View>
-            <View style={s.searchBar}>
-              <Ionicons name="search-outline" size={16} color={COLORS.text.disabled} />
+            <View style={styles.searchWrapper}>
+              <Ionicons name="search-outline" size={18} color={COLORS.text.disabled} />
               <TextInput
-                style={s.searchInput}
-                placeholder="Rechercher…"
+                style={styles.searchInput}
+                placeholder="Rechercher..."
                 placeholderTextColor={COLORS.text.disabled}
                 value={recherche}
                 onChangeText={setRecherche}
+                autoCorrect={false}
+                autoFocus
               />
-              {recherche.length > 0 && (
-                <TouchableOpacity onPress={() => setRecherche('')}>
-                  <Ionicons name="close-circle" size={16} color={COLORS.text.disabled} />
-                </TouchableOpacity>
-              )}
             </View>
             <ScrollView showsVerticalScrollIndicator={false}>
               {['1', '2', '3'].map(arr => {
-                const liste = quartiersF.filter(q => q.arr === arr);
-                if (!liste.length) return null;
+                const liste = quartiersFiltres.filter(q => q.arr === arr);
+                if (liste.length === 0) return null;
                 return (
                   <View key={arr}>
-                    <View style={s.arrHeader}>
-                      <Text style={s.arrLabel}>Ngaoundéré {arr}</Text>
+                    <View style={styles.arrHeader}>
+                      <Text style={styles.arrLabel}>Ngaoundéré {arr}</Text>
                     </View>
                     {liste.map(item => (
                       <TouchableOpacity
                         key={item.value}
-                        style={[s.quartierRow, adresse === item.value && s.quartierRowActive]}
-                        onPress={() => { setAdresse(item.value); setModalQ(false); setRecherche(''); }}
+                        style={[styles.quartierItem, adresse === item.value && styles.quartierItemSelected]}
+                        onPress={() => { setAdresse(item.value); setModalVisible(false); setRecherche(''); }}
                       >
                         <Ionicons
                           name={adresse === item.value ? 'radio-button-on' : 'radio-button-off'}
-                          size={18}
-                          color={adresse === item.value ? COLORS.primary : COLORS.text.disabled}
+                          size={18} color={adresse === item.value ? COLORS.primary : COLORS.text.disabled}
                         />
-                        <Text style={[s.quartierLabel, adresse === item.value && s.quartierLabelActive]}>
+                        <Text style={[styles.quartierText, adresse === item.value && styles.quartierTextSelected]}>
                           {item.label}
                         </Text>
                       </TouchableOpacity>
@@ -281,342 +264,630 @@ export default function SignupScreen() {
         </View>
       </Modal>
 
-      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+      {/* CLAVIER FLUIDE AVEC DÉCALAGE */}
+      <KeyboardAvoidingView 
+        style={{ flex: 1 }} 
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
+      >
+        {/* HEADER BRANDING */}
+        <View style={styles.header}>
+          <View style={styles.logoBox}>
+            <Image
+              source={require('../../assets/logo.png')}
+              style={styles.logoImg}
+              resizeMode="contain"
+            />
+          </View>
+        </View>
+
+        {/* PROGRESS BARS */}
+        <View style={styles.progressContainer}>
+          {ETAPES.map((_, i) => (
+            <View key={i} style={styles.progressStep}>
+              <View style={[
+                styles.progressDot,
+                i <= etape && styles.progressDotActive,
+              ]}>
+                {i < etape ? (
+                  <Ionicons name="checkmark" size={16} color={COLORS.primary} />
+                ) : (
+                  <Text style={[styles.progressNum, i === etape && styles.progressNumActive]}>
+                    {i + 1}
+                  </Text>
+                )}
+              </View>
+              {i < ETAPES.length - 1 && (
+                <View style={[styles.progressLine, i < etape && styles.progressLineDone]} />
+              )}
+            </View>
+          ))}
+        </View>
+
+        {/* SCROLL UNIQUEMENT SUR LA CARTE */}
         <ScrollView
-          contentContainerStyle={s.scroll}
+          contentContainerStyle={styles.scroll}
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
-          {/* Branding */}
-          <View style={s.brandArea}>
-            <Text style={s.brandName}>LaTchop</Text>
-            <Text style={s.brandSub}>Créer votre compte</Text>
-          </View>
-
-          {/* Card */}
-          <View style={s.card}>
-            <StepIndicator current={step} total={3} />
-
-            <Animated.View style={{ transform: [{ translateX: slideAnim }] }}>
-
-              {/* ── Étape 0 : Identité ────────────────── */}
-              {step === 0 && (
-                <View>
-                  <Text style={s.stepTitle}>Qui êtes-vous ?</Text>
-                  <Text style={s.stepSub}>Votre nom et prénom pour personnaliser votre expérience.</Text>
-                  <Field
-                    label="Nom de famille"
-                    icon="person-outline"
-                    placeholder="Votre nom"
-                    value={nom}
-                    onChangeText={setNom}
-                    autoCapitalize="words"
-                    autoCorrect={false}
-                  />
-                  <Field
-                    label="Prénom"
-                    icon="person-circle-outline"
-                    placeholder="Votre prénom"
-                    value={prenom}
-                    onChangeText={setPrenom}
-                    autoCapitalize="words"
-                    autoCorrect={false}
-                  />
+          <View style={styles.cardWrapper}>
+            <Animated.View style={[styles.card, {
+              opacity: cardOp,
+              transform: [
+                { translateY: cardAnim },
+                { translateX: slideAnim },
+                { scale: scaleAnim }
+              ],
+            }]}>
+              
+              {/* EN-TÊTE DE L'ÉTAPE */}
+              <View style={styles.etapeHeader}>
+                <View style={styles.etapeIconWrap}>
+                  <Ionicons name={ETAPES[etape].icon} size={24} color={COLORS.primary} />
                 </View>
-              )}
-
-              {/* ── Étape 1 : Contact & Adresse ───────── */}
-              {step === 1 && (
                 <View>
-                  <Text style={s.stepTitle}>Coordonnées</Text>
-                  <Text style={s.stepSub}>Votre numéro et quartier pour la livraison.</Text>
-                  <Field
-                    label="Numéro de téléphone"
-                    icon="call-outline"
-                    placeholder="Ex: 699 887 766"
-                    value={telephone}
-                    onChangeText={setTelephone}
-                    keyboardType="phone-pad"
-                    maxLength={9}
-                    hint={telephone.length > 0 ? `${telephone.length}/9 chiffres` : undefined}
-                    error={telephone.length > 0 && telephone.length !== 9 ? 'Le numéro doit contenir 9 chiffres' : undefined}
-                  />
-                  <Field
-                    label="Quartier"
-                    icon="location-outline"
-                    inputEl={
-                      <TouchableOpacity style={f.input} onPress={() => setModalQ(true)}>
-                        <Text style={[{ fontSize: 15 }, !adresse && { color: COLORS.text.disabled }]}>
+                  <Text style={styles.etapeSous}>{ETAPES[etape].sous}</Text>
+                  <Text style={styles.etapeTitre}>{ETAPES[etape].titre}</Text>
+                </View>
+              </View>
+
+              {/* CONTENU DU FORMULAIRE */}
+              <View style={styles.formContent}>
+                
+                {/* ÉTAPE 1 - Nom & Prénom */}
+                {etape === 0 && (
+                  <View style={styles.stepBlock}>
+                    <View style={styles.fieldGroup}>
+                      <Text style={styles.fieldLabel}>Nom</Text>
+                      <View style={[
+                        styles.fieldRow,
+                        focused === 'nom' && styles.fieldRowFocused,
+                        nom.trim().length > 0 && focused !== 'nom' && styles.rowOk
+                      ]}>
+                        <View style={styles.fieldIconWrap}>
+                          <Ionicons 
+                            name={focused === 'nom' ? "person" : "person-outline"} 
+                            size={20} 
+                            color={focused === 'nom' ? COLORS.primary : COLORS.text.disabled} 
+                          />
+                        </View>
+                        <TextInput
+                          style={styles.fieldInput}
+                          placeholder="Votre nom de famille"
+                          placeholderTextColor={COLORS.text.disabled}
+                          value={nom}
+                          onChangeText={setNom}
+                          onFocus={() => setFocused('nom')}
+                          onBlur={() => setFocused(null)}
+                          onSubmitEditing={() => prenomRef.current?.focus()}
+                          returnKeyType="next"
+                          autoCorrect={false}
+                          autoCapitalize="words"
+                        />
+                      </View>
+                    </View>
+                    <View style={styles.fieldGroup}>
+                      <Text style={styles.fieldLabel}>Prénom</Text>
+                      <View style={[
+                        styles.fieldRow,
+                        focused === 'prenom' && styles.fieldRowFocused,
+                        prenom.trim().length > 0 && focused !== 'prenom' && styles.rowOk
+                      ]}>
+                        <View style={styles.fieldIconWrap}>
+                          <Ionicons 
+                            name={focused === 'prenom' ? "person-circle" : "person-circle-outline"} 
+                            size={20} 
+                            color={focused === 'prenom' ? COLORS.primary : COLORS.text.disabled} 
+                          />
+                        </View>
+                        <TextInput
+                          ref={prenomRef}
+                          style={styles.fieldInput}
+                          placeholder="Votre prénom"
+                          placeholderTextColor={COLORS.text.disabled}
+                          value={prenom}
+                          onChangeText={setPrenom}
+                          onFocus={() => setFocused('prenom')}
+                          onBlur={() => setFocused(null)}
+                          onSubmitEditing={validerEtape}
+                          returnKeyType="next"
+                          autoCorrect={false}
+                          autoCapitalize="words"
+                        />
+                      </View>
+                    </View>
+                  </View>
+                )}
+
+                {/* ÉTAPE 2 - Quartier & Téléphone */}
+                {etape === 1 && (
+                  <View style={styles.stepBlock}>
+                    <View style={styles.fieldGroup}>
+                      <Text style={styles.fieldLabel}>Quartier</Text>
+                      <TouchableOpacity 
+                        style={[
+                          styles.fieldRow,
+                          focused === 'adresse' && styles.fieldRowFocused,
+                          adresse ? styles.rowOk : null
+                        ]} 
+                        onPress={() => {
+                          setFocused('adresse');
+                          setModalVisible(true);
+                        }} 
+                        activeOpacity={0.7}
+                      >
+                        <View style={styles.fieldIconWrap}>
+                          <Ionicons 
+                            name={focused === 'adresse' || adresse ? "location" : "location-outline"} 
+                            size={20} 
+                            color={focused === 'adresse' || adresse ? COLORS.primary : COLORS.text.disabled} 
+                          />
+                        </View>
+                        <Text style={[styles.selectText, !adresse && styles.selectPlaceholder]}>
                           {adresse || 'Sélectionner votre quartier'}
                         </Text>
-                      </TouchableOpacity>
-                    }
-                    value={adresse}
-                  />
-                </View>
-              )}
-
-              {/* ── Étape 2 : Sécurité ────────────────── */}
-              {step === 2 && (
-                <View>
-                  <Text style={s.stepTitle}>Sécurité</Text>
-                  <Text style={s.stepSub}>Choisissez un mot de passe fort pour protéger votre compte.</Text>
-
-                  {/* Mot de passe */}
-                  <View style={f.group}>
-                    <Text style={f.label}>Mot de passe</Text>
-                    <View style={[f.row, password.length > 0 && f.rowOk]}>
-                      <Ionicons name="lock-closed-outline" size={18} color={COLORS.primary} style={f.icon} />
-                      <TextInput
-                        style={f.input}
-                        placeholder="Min. 6 caractères"
-                        placeholderTextColor={COLORS.text.disabled}
-                        secureTextEntry={!showPass}
-                        value={password}
-                        onChangeText={setPassword}
-                        autoCorrect={false}
-                      />
-                      <TouchableOpacity onPress={() => setShowPass(!showPass)} style={{ padding: 8 }}>
-                        <Ionicons name={showPass ? 'eye-off-outline' : 'eye-outline'} size={18} color={COLORS.text.disabled} />
+                        <Ionicons name="chevron-down" size={16} color={COLORS.text.disabled} style={{ marginRight: SPACING.xs }} />
                       </TouchableOpacity>
                     </View>
-                    {password.length > 0 && (
-                      <View style={s.forceRow}>
-                        {[1, 2, 3].map(i => (
-                          <View key={i} style={[s.forceBarre, { backgroundColor: i <= forceLevel ? forceColors[forceLevel] : '#EEE' }]} />
-                        ))}
-                        {forceLevel > 0 && (
-                          <Text style={[s.forceLabel, { color: forceColors[forceLevel] }]}>{forceLabels[forceLevel]}</Text>
-                        )}
+                    <View style={styles.fieldGroup}>
+                      <Text style={styles.fieldLabel}>Numéro de téléphone</Text>
+                      <View style={[
+                        styles.fieldRow,
+                        focused === 'tel' && styles.fieldRowFocused,
+                        telephoneInvalide && styles.rowError,
+                        telephoneValide && focused !== 'tel' && styles.rowOk,
+                      ]}>
+                        <View style={styles.fieldIconWrap}>
+                          <Ionicons 
+                            name={focused === 'tel' ? "call" : "call-outline"} 
+                            size={20} 
+                            color={
+                              telephoneInvalide ? COLORS.error :
+                              telephoneValide ? COLORS.success :
+                              focused === 'tel' ? COLORS.primary : COLORS.text.disabled
+                            } 
+                          />
+                        </View>
+                        <TextInput
+                          ref={telRef}
+                          style={styles.fieldInput}
+                          placeholder="Ex: 699 887 766"
+                          placeholderTextColor={COLORS.text.disabled}
+                          keyboardType="phone-pad"
+                          maxLength={9}
+                          value={telephone}
+                          onChangeText={setTelephone}
+                          onFocus={() => setFocused('tel')}
+                          onBlur={() => setFocused(null)}
+                          onSubmitEditing={validerEtape}
+                          returnKeyType="next"
+                          autoCorrect={false}
+                        />
                       </View>
-                    )}
+                      {telephone.length > 0 && (
+                        <Text style={[
+                          styles.validationHint,
+                          telephoneValide ? styles.textSuccess : styles.textError
+                        ]}>
+                          {telephoneValide ? '✓ Numéro valide (9 chiffres)' : `${telephone.length}/9 chiffres saisis`}
+                        </Text>
+                      )}
+                    </View>
                   </View>
+                )}
 
-                  {/* Confirmer */}
-                  <View style={f.group}>
-                    <Text style={f.label}>Confirmer le mot de passe</Text>
-                    <View style={[
-                      f.row,
-                      confirm.length > 0 && password !== confirm && f.rowError,
-                      confirm.length > 0 && password === confirm && f.rowOk,
+                {/* ÉTAPE 3 - Sécurité & Politique */}
+                {etape === 2 && (
+                  <View style={styles.stepBlock}>
+                    {/* Mot de passe */}
+                    <View style={styles.fieldGroup}>
+                      <Text style={styles.fieldLabel}>Mot de passe</Text>
+                      <View style={[
+                        styles.fieldRow,
+                        focused === 'pass' && styles.fieldRowFocused,
+                        password.length > 0 && focused !== 'pass' && styles.rowOk
+                      ]}>
+                        <View style={styles.fieldIconWrap}>
+                          <Ionicons 
+                            name={focused === 'pass' ? "lock-closed" : "lock-closed-outline"} 
+                            size={20} 
+                            color={focused === 'pass' ? COLORS.primary : COLORS.text.disabled} 
+                          />
+                        </View>
+                        <TextInput
+                          ref={passRef}
+                          style={styles.fieldInput}
+                          placeholder="Min. 6 caractères"
+                          placeholderTextColor={COLORS.text.disabled}
+                          secureTextEntry={!showPass}
+                          value={password}
+                          onChangeText={setPassword}
+                          onFocus={() => setFocused('pass')}
+                          onBlur={() => setFocused(null)}
+                          onSubmitEditing={() => copassRef.current?.focus()}
+                          returnKeyType="next"
+                          autoCorrect={false}
+                        />
+                        <TouchableOpacity 
+                          onPress={() => setShowPass(!showPass)} 
+                          style={styles.eyeBtn}
+                          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                        >
+                          <Ionicons 
+                            name={showPass ? 'eye-off-outline' : 'eye-outline'} 
+                            size={20} 
+                            color={COLORS.text.disabled} 
+                          />
+                        </TouchableOpacity>
+                      </View>
+                      
+                      {/* Barre d'indicateur visuel de force */}
+                      {password.length > 0 && (
+                        <View style={styles.forceRow}>
+                          {[1, 2, 3].map(i => (
+                            <View 
+                              key={i} 
+                              style={[
+                                styles.forceBarre, 
+                                { backgroundColor: i <= forceLevel ? forceColors[forceLevel] : '#EEE' }
+                              ]} 
+                            />
+                          ))}
+                          {forceLevel > 0 && (
+                            <Text style={[styles.forceLabel, { color: forceColors[forceLevel] }]}>
+                              {forceLabels[forceLevel]}
+                            </Text>
+                          )}
+                        </View>
+                      )}
+                    </View>
+
+                    {/* Confirmation */}
+                    <View style={styles.fieldGroup}>
+                      <Text style={styles.fieldLabel}>Confirmer le mot de passe</Text>
+                      <View style={[
+                        styles.fieldRow,
+                        focused === 'copass' && styles.fieldRowFocused,
+                        passwordsDiffer && styles.rowError,
+                        passwordsMatch && focused !== 'copass' && styles.rowOk,
+                      ]}>
+                        <View style={styles.fieldIconWrap}>
+                          <Ionicons 
+                            name={focused === 'copass' ? "shield-checkmark" : "shield-checkmark-outline"} 
+                            size={20} 
+                            color={
+                              passwordsDiffer ? COLORS.error :
+                              passwordsMatch ? COLORS.success :
+                              focused === 'copass' ? COLORS.primary : COLORS.text.disabled
+                            } 
+                          />
+                        </View>
+                        <TextInput
+                          ref={copassRef}
+                          style={styles.fieldInput}
+                          placeholder="Répétez le mot de passe"
+                          placeholderTextColor={COLORS.text.disabled}
+                          secureTextEntry={!showCoPass}
+                          value={copassword}
+                          onChangeText={setCopassword}
+                          onFocus={() => setFocused('copass')}
+                          onBlur={() => setFocused(null)}
+                          onSubmitEditing={handleInscription}
+                          returnKeyType="done"
+                          autoCorrect={false}
+                        />
+                        <TouchableOpacity 
+                          onPress={() => setShowCoPass(!showCoPass)} 
+                          style={styles.eyeBtn}
+                          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                        >
+                          <Ionicons 
+                            name={showCoPass ? 'eye-off-outline' : 'eye-outline'} 
+                            size={20} 
+                            color={COLORS.text.disabled} 
+                          />
+                        </TouchableOpacity>
+                      </View>
+                      
+                      {/* Message de confirmation de mot de passe */}
+                      {copassword.length > 0 && (
+                        <Text style={[
+                          styles.validationHint,
+                          passwordsMatch ? styles.textSuccess : styles.textError
+                        ]}>
+                          {passwordsMatch ? '✓ Mots de passe identiques' : '✗ Les mots de passe ne correspondent pas'}
+                        </Text>
+                      )}
+                    </View>
+
+                    {/* CHECKBOX POLITIQUE */}
+                    <Animated.View style={[
+                      styles.checkboxContainer,
+                      !acceptePolitique && styles.checkboxContainerError,
+                      { transform: [{ translateX: shakeAnim }] }
                     ]}>
-                      <Ionicons name="shield-checkmark-outline" size={18} color={COLORS.primary} style={f.icon} />
-                      <TextInput
-                        style={f.input}
-                        placeholder="Répétez le mot de passe"
-                        placeholderTextColor={COLORS.text.disabled}
-                        secureTextEntry={!showConf}
-                        value={confirm}
-                        onChangeText={setConfirm}
-                        autoCorrect={false}
-                      />
-                      <TouchableOpacity onPress={() => setShowConf(!showConf)} style={{ padding: 8 }}>
-                        <Ionicons name={showConf ? 'eye-off-outline' : 'eye-outline'} size={18} color={COLORS.text.disabled} />
+                      <TouchableOpacity
+                        style={styles.checkboxRow}
+                        onPress={() => setAcceptePolitique(!acceptePolitique)}
+                        activeOpacity={0.7}
+                      >
+                        <View style={[styles.checkbox, acceptePolitique && styles.checkboxChecked]}>
+                          {acceptePolitique && <Ionicons name="checkmark" size={14} color="#fff" />}
+                        </View>
+                        <View style={styles.checkboxTextWrap}>
+                          <Text style={styles.checkboxText}>
+                            J'ai lu et j'accepte la{' '}
+                            <Text style={styles.checkboxLink} onPress={ouvrirPolitique}>
+                              politique de confidentialité
+                            </Text>
+                            {' '}de LaTchop.
+                          </Text>
+                        </View>
                       </TouchableOpacity>
-                    </View>
-                    {confirm.length > 0 && password !== confirm && (
-                      <Text style={f.errorTxt}>Les mots de passe ne correspondent pas</Text>
-                    )}
-                    {confirm.length > 0 && password === confirm && (
-                      <Text style={{ fontSize: 11, color: COLORS.success, marginTop: 4, fontWeight: '600' }}>
-                        ✓ Mots de passe identiques
-                      </Text>
-                    )}
+                    </Animated.View>
                   </View>
+                )}
+              </View>
 
-                  {/* Récap */}
-                  <View style={s.recap}>
-                    <View style={s.recapRow}>
-                      <Ionicons name="person" size={14} color={COLORS.primary} />
-                      <Text style={s.recapText}>{prenom} {nom}</Text>
-                    </View>
-                    <View style={s.recapRow}>
-                      <Ionicons name="call" size={14} color={COLORS.primary} />
-                      <Text style={s.recapText}>{telephone}</Text>
-                    </View>
-                    <View style={s.recapRow}>
-                      <Ionicons name="location" size={14} color={COLORS.primary} />
-                      <Text style={s.recapText}>{adresse}</Text>
-                    </View>
-                  </View>
-                </View>
-              )}
-            </Animated.View>
-
-            {/* Navigation */}
-            <View style={s.navRow}>
-              <TouchableOpacity style={s.btnBack} onPress={goBack}>
-                <Ionicons name="arrow-back" size={18} color={COLORS.text.secondary} />
-                <Text style={s.btnBackText}>{step === 0 ? 'Connexion' : 'Retour'}</Text>
-              </TouchableOpacity>
-
-              {step < 2 ? (
-                <TouchableOpacity style={s.btnNext} onPress={goNext}>
-                  <Text style={s.btnNextText}>Suivant</Text>
-                  <Ionicons name="arrow-forward" size={18} color="#fff" />
-                </TouchableOpacity>
-              ) : (
+              {/* NAVIGATION BOUTONS */}
+              <View style={styles.navRow}>
+                {etape > 0 && (
+                  <TouchableOpacity style={styles.btnRetour} onPress={retour}>
+                    <Ionicons name="arrow-back" size={18} color={COLORS.text.secondary} />
+                    <Text style={styles.btnRetourText}>Retour</Text>
+                  </TouchableOpacity>
+                )}
                 <TouchableOpacity
-                  style={[s.btnNext, loading && { opacity: 0.7 }]}
-                  onPress={handleInscription}
+                  style={[
+                    styles.btnSuivant,
+                    etape === 0 && { flex: 1 },
+                    etape === 2 && !acceptePolitique && styles.btnSuivantDisabled,
+                  ]}
+                  onPress={etape < 2 ? validerEtape : handleInscription}
+                  onPressIn={handlePressIn}
+                  onPressOut={handlePressOut}
                   disabled={loading}
                 >
-                  {loading
-                    ? <ActivityIndicator color="#fff" />
-                    : (
-                      <>
-                        <Text style={s.btnNextText}>Créer le compte</Text>
-                        <Ionicons name="checkmark-circle" size={18} color="#fff" />
-                      </>
-                    )
-                  }
+                  {loading ? (
+                    <ActivityIndicator color="#fff" size="small" />
+                  ) : (
+                    <>
+                      <Text style={styles.btnSuivantText}>
+                        {etape < 2 ? 'Continuer' : 'Créer mon compte'}
+                      </Text>
+                      {etape < 2 && <Ionicons name="arrow-forward" size={18} color="#fff" />}
+                    </>
+                  )}
                 </TouchableOpacity>
-              )}
-            </View>
-
-            {step === 0 && (
-              <View style={s.loginRow}>
-                <Text style={s.loginText}>Déjà un compte ? </Text>
-                <Link href="/auth/login" asChild>
-                  <TouchableOpacity>
-                    <Text style={s.loginLink}>Se connecter</Text>
-                  </TouchableOpacity>
-                </Link>
               </View>
-            )}
+
+              {/* LIEN CONNEXION */}
+              {etape === 0 && (
+                <View style={styles.linkRow}>
+                  <Text style={styles.linkText}>Déjà un compte ? </Text>
+                  <Link href="/auth/login" asChild>
+                    <TouchableOpacity>
+                      <Text style={styles.link}>Se connecter</Text>
+                    </TouchableOpacity>
+                  </Link>
+                </View>
+              )}
+
+            </Animated.View>
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
-    </View>
+    </SafeAreaView>
   );
 }
 
-const s = StyleSheet.create({
+const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: COLORS.primary },
-  bgTop: { ...StyleSheet.absoluteFillObject, backgroundColor: COLORS.primary },
-  bgBottom: {
+  
+  // ── Fond dégradé ──
+  bg: { ...StyleSheet.absoluteFillObject },
+  bgCircle1: {
+    position: 'absolute', width: width * 0.9, height: width * 0.9,
+    borderRadius: (width * 0.9) / 2,
+    backgroundColor: 'rgba(255,255,255,0.07)',
+    top: -width * 0.3, left: -width * 0.2,
+  },
+  bgCircle2: {
+    position: 'absolute', width: 180, height: 180, borderRadius: 90,
+    backgroundColor: 'rgba(255,255,255,0.06)',
+    top: height * 0.05, right: -40,
+  },
+  bgWave: {
     position: 'absolute', bottom: 0, left: 0, right: 0,
-    height: height * 0.65,
+    height: height * 0.55,
     backgroundColor: COLORS.background,
     borderTopLeftRadius: 40, borderTopRightRadius: 40,
   },
-
-  scroll: { flexGrow: 1, justifyContent: 'flex-end', paddingBottom: 40 },
-
-  brandArea: {
-    alignItems: 'center',
-    paddingTop: height * 0.08,
+  
+  scroll: {
+    flexGrow: 1,
+    padding: SPACING.lg,
+    paddingTop: SPACING.md,
     paddingBottom: SPACING.xl,
   },
-  brandName: {
-    fontSize: 36, fontWeight: '900', color: '#fff',
-    letterSpacing: -1, marginBottom: 4,
+  
+  // Branding
+  header: {
+    alignItems: 'center',
+    marginTop: SPACING.sm,
+    marginBottom: SPACING.lg,
   },
-  brandSub: {
-    fontSize: 15, color: 'rgba(255,255,255,0.75)',
-    fontWeight: '500',
+  logoBox: {
+    width: 120,
+    height: 120,
+    borderRadius: RADIUS.xs,
+    backgroundColor: 'transparent',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 0,
+    padding: 0,
   },
-
+  logoImg: { width: '100%', height: '100%' },
+  
+  // Progress Bar
+  progressContainer: { 
+    flexDirection: 'row', 
+    alignItems: 'center', 
+    justifyContent: 'center', 
+    marginBottom: SPACING.lg 
+  },
+  progressStep: { flexDirection: 'row', alignItems: 'center' },
+  progressDot: {
+    width: 36, height: 36, borderRadius: 18,
+    backgroundColor: 'rgba(255,255,255,0.25)',
+    alignItems: 'center', justifyContent: 'center',
+  },
+  progressDotActive: { backgroundColor: '#fff' },
+  progressNum: { fontSize: 14, fontWeight: '700', color: 'rgba(255,255,255,0.7)' },
+  progressNumActive: { color: COLORS.primary },
+  progressLine: { width: 50, height: 2, backgroundColor: 'rgba(255,255,255,0.3)', marginHorizontal: 4 },
+  progressLineDone: { backgroundColor: '#fff' },
+  
+  // Carte principale
+  cardWrapper: { alignItems: 'center', width: '100%' },
   card: {
+    width: '100%',
     backgroundColor: COLORS.surface,
     borderRadius: 32,
     padding: SPACING.xl,
-    marginHorizontal: SPACING.md,
-    ...SHADOWS.heavy,
+    minHeight: 440,
+    ...SHADOWS.medium,
   },
-
-  stepTitle: {
-    fontSize: 22, fontWeight: '900', color: COLORS.text.primary,
-    marginBottom: 4, letterSpacing: -0.3,
+  
+  // En-tête d'étape
+  etapeHeader: {
+    flexDirection: 'row', alignItems: 'center', gap: 12,
+    marginBottom: SPACING.lg, paddingBottom: SPACING.md,
+    borderBottomWidth: 1, borderBottomColor: COLORS.border
   },
-  stepSub: {
-    fontSize: 13, color: COLORS.text.secondary,
-    marginBottom: SPACING.lg, lineHeight: 19,
+  etapeIconWrap: {
+    width: 48, height: 48, borderRadius: RADIUS.md,
+    backgroundColor: COLORS.primary + '15',
+    alignItems: 'center', justifyContent: 'center'
   },
-
+  etapeSous: { fontSize: 11, color: COLORS.primary, fontWeight: '800', textTransform: 'uppercase', letterSpacing: 0.5 },
+  etapeTitre: { fontSize: 18, fontWeight: '800', color: COLORS.text.primary, marginTop: 2 },
+  
+  // Formulaire
+  formContent: { flex: 1 },
+  stepBlock: { gap: SPACING.md },
+  
+  fieldGroup: { marginBottom: SPACING.md },
+  fieldLabel: {
+    fontSize: 13, fontWeight: '700', color: COLORS.text.primary,
+    marginBottom: 7,
+  },
+  fieldRow: {
+    flexDirection: 'row', alignItems: 'center',
+    backgroundColor: COLORS.background,
+    borderWidth: 1.5, borderColor: COLORS.border,
+    borderRadius: RADIUS.md, paddingRight: SPACING.md,
+    height: 54,
+  },
+  fieldRowFocused: {
+    borderColor: COLORS.primary,
+    backgroundColor: COLORS.primary + '06',
+  },
+  fieldIconWrap: {
+    width: 50, alignItems: 'center', justifyContent: 'center',
+  },
+  fieldInput: { flex: 1, fontSize: 16, color: COLORS.text.primary, height: 54 },
+  eyeBtn: { padding: 6 },
+  
+  rowError: { borderColor: COLORS.error, backgroundColor: COLORS.error + '06' },
+  rowOk: { borderColor: COLORS.success + '80', backgroundColor: COLORS.success + '06' },
+  selectText: { flex: 1, fontSize: 16, color: COLORS.text.primary },
+  selectPlaceholder: { color: COLORS.text.disabled },
+  
+  validationHint: { fontSize: 11, marginTop: 4, fontWeight: '600', marginLeft: 4 },
+  textSuccess: { color: COLORS.success },
+  textError: { color: COLORS.error },
+  
   forceRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 6 },
   forceBarre: { flex: 1, height: 4, borderRadius: 2 },
   forceLabel: { fontSize: 11, fontWeight: '700', marginLeft: 4, minWidth: 40 },
-
-  recap: {
-    backgroundColor: COLORS.primary + '08',
-    borderRadius: RADIUS.md,
-    padding: SPACING.md,
-    borderWidth: 1, borderColor: COLORS.primary + '20',
-    gap: 6, marginTop: SPACING.sm,
+  
+  checkboxContainer: {
+    borderWidth: 1.5, borderColor: COLORS.border, borderRadius: RADIUS.md,
+    padding: SPACING.md, backgroundColor: COLORS.background, marginTop: 4,
   },
-  recapRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  recapText: { fontSize: 13, color: COLORS.text.primary, fontWeight: '600' },
-
-  navRow: {
-    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
-    marginTop: SPACING.xl, gap: SPACING.sm,
+  checkboxContainerError: { borderColor: COLORS.error + '50', backgroundColor: COLORS.error + '08' },
+  checkboxRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 12 },
+  checkbox: {
+    width: 24, height: 24, borderRadius: 6,
+    borderWidth: 2, borderColor: COLORS.text.disabled,
+    alignItems: 'center', justifyContent: 'center',
+    marginTop: 1, flexShrink: 0,
   },
-  btnBack: {
-    flexDirection: 'row', alignItems: 'center', gap: 6,
+  checkboxChecked: { backgroundColor: COLORS.primary, borderColor: COLORS.primary },
+  checkboxTextWrap: { flex: 1 },
+  checkboxText: { fontSize: 13, color: COLORS.text.secondary, lineHeight: 20 },
+  checkboxLink: { color: COLORS.primary, fontWeight: '700', textDecorationLine: 'underline' },
+  
+  navRow: { flexDirection: 'row', gap: SPACING.sm, marginTop: SPACING.xl },
+  btnRetour: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6,
+    borderWidth: 1.5, borderColor: COLORS.border, borderRadius: RADIUS.md,
     backgroundColor: COLORS.background,
-    borderRadius: RADIUS.md, paddingHorizontal: SPACING.md, height: 50,
-    borderWidth: 1, borderColor: COLORS.border,
+    height: 52, paddingHorizontal: SPACING.md,
   },
-  btnBackText: { fontSize: 14, fontWeight: '700', color: COLORS.text.secondary },
-  btnNext: {
+  btnRetourText: { color: COLORS.text.secondary, fontSize: 14, fontWeight: '700' },
+  btnSuivant: {
     flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
-    backgroundColor: COLORS.primary, borderRadius: RADIUS.md, height: 50,
-    shadowColor: COLORS.primary,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3, shadowRadius: 8, elevation: 5,
+    backgroundColor: COLORS.primary, borderRadius: RADIUS.md, height: 52,
+    shadowColor: COLORS.primary, shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.25, shadowRadius: 8, elevation: 6,
   },
-  btnNextText: { fontSize: 15, fontWeight: '800', color: '#fff' },
-
-  loginRow: {
-    flexDirection: 'row', justifyContent: 'center',
-    alignItems: 'center', marginTop: SPACING.lg,
-  },
-  loginText: { fontSize: 14, color: COLORS.text.secondary },
-  loginLink: { fontSize: 14, color: COLORS.primary, fontWeight: '800' },
-
+  btnSuivantDisabled: { backgroundColor: COLORS.text.disabled, shadowOpacity: 0, elevation: 0 },
+  btnSuivantText: { color: '#fff', fontSize: 15, fontWeight: '800', textAlign: 'center' },
+  
+  linkRow: { flexDirection: 'row', justifyContent: 'center', marginTop: SPACING.lg },
+  linkText: { color: COLORS.text.secondary, fontSize: 14 },
+  link: { color: COLORS.primary, fontSize: 14, fontWeight: '800' },
+  
   // Modal
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
-  modalSheet: {
-    backgroundColor: COLORS.surface,
-    borderTopLeftRadius: 28, borderTopRightRadius: 28,
-    maxHeight: '85%', paddingBottom: 16,
+  modalContainer: { 
+    backgroundColor: COLORS.surface, 
+    borderTopLeftRadius: RADIUS.xl, 
+    borderTopRightRadius: RADIUS.xl, 
+    maxHeight: '80%', 
+    paddingBottom: 30 
   },
-  handle: {
-    width: 40, height: 4, borderRadius: 2,
-    backgroundColor: COLORS.border,
-    alignSelf: 'center', marginTop: 12, marginBottom: 4,
-  },
-  modalHead: {
-    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
-    paddingHorizontal: SPACING.lg, paddingVertical: SPACING.md,
-    borderBottomWidth: 1, borderBottomColor: COLORS.border,
+  modalHeader: { 
+    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', 
+    padding: SPACING.lg, borderBottomWidth: 1, borderBottomColor: COLORS.border 
   },
   modalTitle: { fontSize: 18, fontWeight: '800', color: COLORS.text.primary },
-  closeBtn: {
-    width: 34, height: 34, borderRadius: 17,
-    backgroundColor: COLORS.background,
-    alignItems: 'center', justifyContent: 'center',
+  closeBtn: { 
+    width: 36, height: 36, borderRadius: 18, 
+    backgroundColor: COLORS.background, 
+    alignItems: 'center', justifyContent: 'center' 
   },
-  searchBar: {
-    flexDirection: 'row', alignItems: 'center', gap: 8,
-    borderWidth: 1.5, borderColor: COLORS.border,
-    borderRadius: RADIUS.md, paddingHorizontal: SPACING.md,
-    margin: SPACING.md, backgroundColor: COLORS.background, height: 44,
+  searchWrapper: { 
+    flexDirection: 'row', alignItems: 'center', 
+    borderWidth: 1.5, borderColor: COLORS.border, borderRadius: RADIUS.md, 
+    paddingHorizontal: SPACING.md, margin: SPACING.md, 
+    backgroundColor: COLORS.background, height: 46 
   },
-  searchInput: { flex: 1, fontSize: 15, color: COLORS.text.primary },
-  arrHeader: {
-    paddingHorizontal: SPACING.lg, paddingVertical: 8,
-    backgroundColor: COLORS.primary + '0A',
-    borderLeftWidth: 3, borderLeftColor: COLORS.primary,
+  searchInput: { flex: 1, fontSize: 15, color: COLORS.text.primary, marginLeft: 8 },
+  arrHeader: { 
+    paddingHorizontal: SPACING.lg, paddingVertical: 8, 
+    backgroundColor: COLORS.primary + '0A', 
+    borderLeftWidth: 3, borderLeftColor: COLORS.primary 
   },
   arrLabel: { fontSize: 11, fontWeight: '800', color: COLORS.primary, textTransform: 'uppercase', letterSpacing: 1 },
-  quartierRow: {
-    flexDirection: 'row', alignItems: 'center', gap: 12,
-    paddingHorizontal: SPACING.lg, paddingVertical: 14,
-    borderBottomWidth: 1, borderBottomColor: COLORS.border,
+  quartierItem: { 
+    flexDirection: 'row', alignItems: 'center', gap: 12, 
+    paddingHorizontal: SPACING.lg, paddingVertical: 14, 
+    borderBottomWidth: 1, borderBottomColor: COLORS.border 
   },
-  quartierRowActive: { backgroundColor: COLORS.primary + '08' },
-  quartierLabel: { flex: 1, fontSize: 15, color: COLORS.text.secondary },
-  quartierLabelActive: { color: COLORS.primary, fontWeight: '700' },
+  quartierItemSelected: { backgroundColor: COLORS.primary + '08' },
+  quartierText: { fontSize: 15, color: COLORS.text.secondary, flex: 1 },
+  quartierTextSelected: { color: COLORS.primary, fontWeight: '700' },
 });

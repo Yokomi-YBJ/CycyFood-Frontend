@@ -41,6 +41,7 @@ export default function AdminCompte() {
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
+    <View style={{ flex: 1, backgroundColor: COLORS.background }} >
       <StatusBar barStyle="light-content" backgroundColor={COLORS.primary} />
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scroll}>
 
@@ -83,12 +84,13 @@ export default function AdminCompte() {
           <Text style={styles.btnDeconnexionText}>Se déconnecter</Text>
         </TouchableOpacity>
       </ScrollView>
+      </View>
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: COLORS.background },
+  container: { flex: 1, backgroundColor: COLORS.primary },
   scroll: { paddingBottom: SPACING.xl },
   header: { alignItems: 'center', paddingVertical: SPACING.xxl, backgroundColor: COLORS.text.primary },
   avatar: { width: 90, height: 90, borderRadius: RADIUS.full, backgroundColor: COLORS.surface, alignItems: 'center', justifyContent: 'center', marginBottom: SPACING.md, ...SHADOWS.medium },
