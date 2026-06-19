@@ -2,8 +2,9 @@
 import React from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity, ScrollView,
-  Linking, StatusBar,
+  Linking,
 } from 'react-native';
+import { StatusBar } from 'expo-status-bar';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
@@ -69,7 +70,7 @@ export default function ProfilScreen() {
 
   return (
     <SafeAreaView style={styles.safeArea} edges={['top']}>
-      <StatusBar barStyle="light-content" backgroundColor={COLORS.primary} />
+      <StatusBar style="light" backgroundColor={COLORS.primary} />
 
       <ScrollView showsVerticalScrollIndicator={false}>
 
@@ -312,7 +313,7 @@ const styles = StyleSheet.create({
   // Sections
   section: { paddingHorizontal: SPACING.md, marginTop: SPACING.lg },
   sectionTitle: {
-    fontSize: 11, fontWeight: '800', color: COLORS.text.secondary,
+    fontSize: 11, fontWeight: '800', color: 'rgba(255,255,255,0.7)',
     textTransform: 'uppercase', letterSpacing: 1.2,
     marginBottom: SPACING.sm,
   },

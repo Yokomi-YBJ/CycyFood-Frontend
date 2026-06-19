@@ -2,8 +2,9 @@
 import React, { useState } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity, StyleSheet,
-  ScrollView, ActivityIndicator, Modal, StatusBar,
+  ScrollView, ActivityIndicator, Modal, 
 } from 'react-native';
+import { StatusBar } from 'expo-status-bar';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -171,8 +172,7 @@ export default function ModifierProfilScreen() {
 
   return (
     <SafeAreaView style={s.safeArea} edges={['top']}>
-      <StatusBar barStyle="dark-content" backgroundColor={COLORS.background} />
-
+      <StatusBar style="light" backgroundColor={COLORS.primary} />
       {/* ── Modal Quartier ─────────────────────────────── */}
       <Modal visible={modalQuartier} animationType="slide" transparent>
         <View style={s.modalOverlay}>

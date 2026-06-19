@@ -6,6 +6,11 @@
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
+    "splash": {
+      "image": "./assets/icon.jpg",
+      "resizeMode": "contain",
+      "backgroundColor": "#C04B1E"
+    },
     "newArchEnabled": true,
     "notification": {
       "icon": "./assets/notification-icon.png",

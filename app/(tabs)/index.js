@@ -2,9 +2,9 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   View, Text, ScrollView, StyleSheet, TouchableOpacity,
-  Image, ActivityIndicator, RefreshControl, Dimensions,
-  StatusBar, Animated,
+  Image, ActivityIndicator, RefreshControl, Dimensions, Animated,
 } from 'react-native';
+import { StatusBar } from 'expo-status-bar';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../context/AuthContext';
@@ -94,7 +94,7 @@ export default function HomeScreen() {
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
-      <StatusBar barStyle="dark-content" backgroundColor={COLORS.background} />
+     <StatusBar style="dark" backgroundColor="transparent" translucent={true} />
 
       <ScrollView
         showsVerticalScrollIndicator={false}
@@ -119,10 +119,7 @@ export default function HomeScreen() {
             </Text>
           </View>
           <View style={styles.headerRight}>
-            <View style={styles.notifBtn}>
-              <Ionicons name="notifications-outline" size={22} color={COLORS.text.primary} />
-              <View style={styles.notifDot} />
-            </View>
+            
           </View>
         </Animated.View>
 
@@ -142,10 +139,6 @@ export default function HomeScreen() {
             <Text style={styles.heroSub}>
               Plats frais préparés à Ngaoundéré
             </Text>
-            <TouchableOpacity style={styles.heroBtn}>
-              <Text style={styles.heroBtnText}>Explorer</Text>
-              <Ionicons name="arrow-forward" size={14} color={COLORS.primary} />
-            </TouchableOpacity>
           </View>
 
           <View style={styles.heroImageWrap}>
@@ -187,15 +180,10 @@ export default function HomeScreen() {
         {/* ─── SPÉCIALITÉS ────────────────────────────────── */}
         <View style={styles.sectionHeader}>
           <View>
-            <Text style={styles.sectionEyebrow}>Notre carte</Text>
             <Text style={styles.sectionTitle}>
               Nos <Text style={styles.accent}>Spécialités</Text>
             </Text>
           </View>
-          <TouchableOpacity style={styles.seeAllBtn}>
-            <Text style={styles.seeAllText}>Voir tout</Text>
-            <Ionicons name="chevron-forward" size={14} color={COLORS.primary} />
-          </TouchableOpacity>
         </View>
 
         {loading ? (
@@ -227,9 +215,8 @@ export default function HomeScreen() {
         {/* ─── POPULAIRES ─────────────────────────────────── */}
         <View style={[styles.sectionHeader, { marginTop: SPACING.lg }]}>
           <View>
-            <Text style={styles.sectionEyebrow}>Les favoris</Text>
             <Text style={styles.sectionTitle}>
-              Plats <Text style={styles.accent}>Populaires</Text>
+              Plats <Text style={styles.accent}>Disponibles</Text>
             </Text>
           </View>
         </View>

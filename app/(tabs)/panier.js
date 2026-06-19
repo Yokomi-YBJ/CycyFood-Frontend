@@ -2,8 +2,9 @@
 import React, { useState } from 'react';
 import {
   View, Text, StyleSheet, FlatList, TouchableOpacity,
-  Image, ActivityIndicator, StatusBar,
+  Image, ActivityIndicator,
 } from 'react-native';
+import { StatusBar } from 'expo-status-bar';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useCart } from '../../context/CartContext';
@@ -106,7 +107,7 @@ export default function PanierScreen() {
 
   return (
     <View style={styles.container}>
-      <StatusBar barStyle="dark-content" backgroundColor={COLORS.background} />
+     <StatusBar style="dark" backgroundColor="transparent" translucent={true} />
       <View style={[styles.content, { paddingTop: insets.top + 8 }]}>
 
         {/* Header */}

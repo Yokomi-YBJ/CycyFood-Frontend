@@ -91,7 +91,6 @@ export default function LoginScreen() {
                 resizeMode="contain"
               />
             </View>
-            <Text style={s.brandName}>LaTchop</Text>
             <Text style={s.brandTagline}>Local · Rapide · Délicieux</Text>
           </View>
 
@@ -226,7 +225,7 @@ const s = StyleSheet.create({
   },
   logoBox: {
     width: 90, height: 90, borderRadius: RADIUS.xl,
-    backgroundColor: '#fff', alignItems: 'center', justifyContent: 'center',
+    backgroundColor: '#e262178f', alignItems: 'center', justifyContent: 'center',
     marginBottom: SPACING.md,
     ...SHADOWS.heavy,
     padding: 8,
