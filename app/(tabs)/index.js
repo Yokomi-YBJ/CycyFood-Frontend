@@ -2,7 +2,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   View, Text, ScrollView, StyleSheet, TouchableOpacity,
-  Image, ActivityIndicator, RefreshControl, Dimensions, Animated,
+  Image, RefreshControl, Dimensions, Animated,
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -11,29 +11,21 @@ import { useAuth } from '../../context/AuthContext';
 import { useCart } from '../../context/CartContext';
 import { useAlert } from '../../context/AlertContext';
 import { Skeleton } from '../../components/Skeleton';
-import { ENDPOINTS } from '../../constants/api';
+import { getProduitsAvecCache } from '../../utils/produitsCache';
 import { COLORS, SPACING, RADIUS, SHADOWS } from '../../constants/theme';
 
 const { width } = Dimensions.get('window');
 const CARD_W = (width - SPACING.md * 3) / 2;
+const CATEGORIES_FIXES = ['Tout', 'Plat', 'Boisson', 'Dessert', 'Entrée', 'Snack'];
 
 // ── Skeleton card ────────────────────────────────────────
 const ProductSkeleton = () => (
   <View style={styles.produitCard}>
-    <Skeleton width="100%" height={140} style={{ borderBottomLeftRadius: 0, borderBottomRightRadius: 0 }} />
+    <Skeleton width="100%" height={130} style={{ borderBottomLeftRadius: 0, borderBottomRightRadius: 0 }} />
     <View style={{ padding: SPACING.md }}>
       <Skeleton width="75%" height={14} style={{ marginBottom: 6 }} />
       <Skeleton width="45%" height={11} style={{ marginBottom: 14 }} />
       <Skeleton width="100%" height={38} style={{ borderRadius: RADIUS.md }} />
-    </View>
-  </View>
-);
-
-const SpecialiteSkeleton = () => (
-  <View style={styles.specialiteCard}>
-    <Skeleton width={160} height={110} style={{ borderRadius: 0 }} />
-    <View style={{ padding: SPACING.sm }}>
-      <Skeleton width="80%" height={13} style={{ marginBottom: 4 }} />
     </View>
   </View>
 );
@@ -47,14 +39,20 @@ export default function HomeScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [addedIds, setAddedIds] = useState({});
   const [imageErrors, setImageErrors] = useState({});
+  const [categorieActive, setCategorieActive] = useState('Tout');
 
   const headerAnim = useRef(new Animated.Value(0)).current;
 
+  // Utilise le cache local (AsyncStorage) synchronisé par ETag :
+  // - Affichage instantané si un cache existe déjà sur l'appareil.
+  // - Aucun retéléchargement de la liste si rien n'a changé côté admin
+  //   (le serveur répond alors 304, sans payload).
+  // - Mise à jour silencieuse du cache uniquement quand la BD a réellement
+  //   changé (nouveau produit, stock modifié, prix modifié...).
   const fetchProduits = async () => {
     try {
-      const res = await fetch(ENDPOINTS.produits);
-      const data = await res.json();
-      if (data.status === 'success') setProduits(data.produits);
+      const { produits: liste } = await getProduitsAvecCache();
+      setProduits(liste);
     } catch {
       showAlert({
         title: 'Connexion impossible',
@@ -82,224 +80,204 @@ export default function HomeScreen() {
   }, []);
 
   const handleAddToCart = (produit) => {
-    addToCart(produit);
+    const res = addToCart(produit);
+    if (res && res.success === false) {
+      showAlert({
+        title: 'Limite atteinte',
+        message: res.message,
+        type: 'warning',
+      });
+      return;
+    }
     setAddedIds(prev => ({ ...prev, [produit.id_produit]: true }));
     setTimeout(() => {
       setAddedIds(prev => ({ ...prev, [produit.id_produit]: false }));
     }, 1400);
   };
 
-  const handleImageError = (productId, section) => {
-    const key = `${section}-${productId}`;
-    setImageErrors(prev => ({ ...prev, [key]: true }));
+  const handleImageError = (productId) => {
+    setImageErrors(prev => ({ ...prev, [productId]: true }));
   };
 
   const heure = new Date().getHours();
   const salutation = heure < 6 ? 'Bonne nuit' : heure < 12 ? 'Bonjour' : heure < 18 ? 'Bon après-midi' : 'Bonsoir';
-  const salutIcon = heure < 12 ? '☀️' : heure < 18 ? '🌤️' : '🌙';
+  const salutIcon = heure < 12 ? 'sunny-outline' : heure < 18 ? 'partly-sunny-outline' : 'moon-outline';
+
+  const produitsFiltres = categorieActive === 'Tout'
+    ? produits
+    : produits.filter(p => (p.categorie || 'Plat') === categorieActive);
+
+  const categoriesPresentes = ['Tout', ...new Set(produits.map(p => p.categorie || 'Plat'))];
+  const categoriesAffichees = CATEGORIES_FIXES.filter(c => categoriesPresentes.includes(c));
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
-    <View style={{ flex: 1, backgroundColor: COLORS.background }}>
-     <StatusBar style="light" backgroundColor={COLORS.primary} translucent={false} />
+      <View style={{ flex: 1, backgroundColor: COLORS.background }}>
+        <StatusBar style="light" backgroundColor={COLORS.primary} translucent={false} />
 
-      <ScrollView
-        showsVerticalScrollIndicator={false}
-        refreshControl={
-          <RefreshControl
-            refreshing={refreshing}
-            onRefresh={onRefresh}
-            colors={[COLORS.primary]}
-            tintColor={COLORS.primary}
-          />
-        }
-      >
-        {/* ─── HEADER ─────────────────────────────────────── */}
-        <Animated.View style={[styles.header, {
-          opacity: headerAnim,
-          transform: [{ translateY: headerAnim.interpolate({ inputRange: [0, 1], outputRange: [-10, 0] }) }]
-        }]}>
-          <View style={styles.headerLeft}>
-            <Text style={styles.salutation}>{salutIcon} {salutation},</Text>
-            <Text style={styles.userName} numberOfLines={1}>
-              {user?.prenom_user || user?.nom_user || 'Bienvenue'}
-            </Text>
-          </View>
-          <View style={styles.headerRight}>
-            
-          </View>
-        </Animated.View>
-
-        {/* ─── HERO ───────────────────────────────────────── */}
-        <View style={styles.hero}>
-          <View style={styles.heroDecorTop} />
-          <View style={styles.heroDecorBottom} />
-
-          <View style={styles.heroContent}>
-            <View style={styles.heroBadge}>
-              <View style={styles.heroBadgeDot} />
-              <Text style={styles.heroBadgeText}>Livraison disponible</Text>
-            </View>
-            <Text style={styles.heroTitle}>
-              Le goût{'\n'}du local,{'\n'}<Text style={styles.heroAccent}>chez vous.</Text>
-            </Text>
-            <Text style={styles.heroSub}>
-              Plats frais préparés à Ngaoundéré
-            </Text>
-          </View>
-
-          <View style={styles.heroImageWrap}>
-            <View style={styles.heroImageBg} />
-            <Image
-              source={require('../../assets/logo.png')}
-              style={styles.heroImage}
-              resizeMode="contain"
-            />
-            {/* Prix flottant */}
-            <View style={styles.floatingPrice}>
-              <Text style={styles.floatingPriceText}>À partir de</Text>
-              <Text style={styles.floatingPriceVal}>500 Fcfa</Text>
-            </View>
-          </View>
-        </View>
-
-        {/* ─── AVANTAGES ──────────────────────────────────── */}
         <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.avantagesRow}
+          showsVerticalScrollIndicator={false}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={onRefresh}
+              colors={[COLORS.primary]}
+              tintColor={COLORS.primary}
+            />
+          }
         >
-          {[
-            { icon: 'restaurant',  label: 'Cuisine\nlocale',    color: COLORS.primary,   bg: COLORS.primary + '12' },
-            { icon: 'flash',       label: 'Livraison\nrapide',  color: COLORS.secondary, bg: COLORS.secondary + '12' },
-            { icon: 'wallet',      label: 'Prix\nabordables',   color: COLORS.accent,    bg: COLORS.accent + '25' },
-            { icon: 'leaf',        label: 'Ingrédients\nfrais', color: '#27AE60',        bg: '#27AE6012' },
-          ].map((item, i) => (
-            <View key={i} style={[styles.avantageCard, { borderTopColor: item.color }]}>
-              <View style={[styles.avantageIconWrap, { backgroundColor: item.bg }]}>
-                <Ionicons name={item.icon} size={22} color={item.color} />
+          {/* ─── HEADER ─────────────────────────────────────── */}
+          <Animated.View style={[styles.header, {
+            opacity: headerAnim,
+            transform: [{ translateY: headerAnim.interpolate({ inputRange: [0, 1], outputRange: [-10, 0] }) }]
+          }]}>
+            <View style={styles.headerLeft}>
+              <View style={styles.salutationRow}>
+                <Ionicons name={salutIcon} size={14} color={COLORS.primary} />
+                <Text style={styles.salutation}>{salutation}</Text>
               </View>
-              <Text style={styles.avantageLabel}>{item.label}</Text>
+              <Text style={styles.userName} numberOfLines={1}>
+                {user?.prenom_user || user?.nom_user || 'Bienvenue'}
+              </Text>
             </View>
-          ))}
-        </ScrollView>
+          </Animated.View>
 
-        {/* ─── SPÉCIALITÉS ────────────────────────────────── */}
-        <View style={styles.sectionHeader}>
-          <View>
+          {/* ─── HERO — signature visuelle ──────────────────── */}
+          <View style={styles.hero}>
+            <View style={styles.heroPattern} pointerEvents="none">
+              {[...Array(3)].map((_, i) => (
+                <View key={i} style={[styles.heroPatternRing, { width: 90 + i * 60, height: 90 + i * 60, opacity: 0.09 - i * 0.02 }]} />
+              ))}
+            </View>
+
+            <View style={styles.heroContent}>
+              <View style={styles.heroBadge}>
+                <View style={styles.heroBadgeDot} />
+                <Text style={styles.heroBadgeText}>Ngaoundéré · Livraison active</Text>
+              </View>
+              <Text style={styles.heroTitle}>
+                Le vrai goût,{'\n'}livré <Text style={styles.heroAccent}>chaud.</Text>
+              </Text>
+              <Text style={styles.heroSub}>
+                {produits.length > 0 ? `${produits.length} plats préparés aujourd'hui` : 'Plats frais préparés localement'}
+              </Text>
+            </View>
+
+            <View style={styles.heroImageWrap}>
+              <View style={styles.heroImageBg} />
+              <Image
+                source={require('../../assets/logo.png')}
+                style={styles.heroImage}
+                resizeMode="contain"
+              />
+            </View>
+          </View>
+
+          {/* ─── CATÉGORIES ──────────────────────────────────── */}
+          {categoriesAffichees.length > 1 && (
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.categoriesRow}
+            >
+              {categoriesAffichees.map(cat => {
+                const active = categorieActive === cat;
+                return (
+                  <TouchableOpacity
+                    key={cat}
+                    style={[styles.categoryChip, active && styles.categoryChipActive]}
+                    onPress={() => setCategorieActive(cat)}
+                    activeOpacity={0.75}
+                  >
+                    <Text style={[styles.categoryChipText, active && styles.categoryChipTextActive]}>
+                      {cat}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </ScrollView>
+          )}
+
+          {/* ─── PLATS DISPONIBLES ───────────────────────────── */}
+          <View style={styles.sectionHeader}>
             <Text style={styles.sectionTitle}>
-              Nos <Text style={styles.accent}>Spécialités</Text>
+              {categorieActive === 'Tout' ? 'Tous les plats' : categorieActive}
             </Text>
+            {!loading && (
+              <Text style={styles.sectionCount}>{produitsFiltres.length} article{produitsFiltres.length > 1 ? 's' : ''}</Text>
+            )}
           </View>
-        </View>
 
-        {loading ? (
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingLeft: SPACING.md, paddingRight: SPACING.sm, gap: SPACING.sm }}>
-            {[1, 2, 3].map(i => <SpecialiteSkeleton key={i} />)}
-          </ScrollView>
-        ) : (
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.specialitesRow}
-          >
-            {produits.map(p => {
-              const hasImageError = imageErrors[`specialite-${p.id_produit}`];
-              return (
-                <View key={p.id_produit} style={styles.specialiteCard}>
-                  {hasImageError || !p.img_url ? (
-                    <View style={styles.specialiteImageFallback}>
-                      <Ionicons name="restaurant-outline" size={32} color={COLORS.text.disabled} />
-                    </View>
-                  ) : (
-                    <>
-                      <Image
-                        source={{ uri: p.img_url }}
-                        style={styles.specialiteImg}
-                        onError={() => handleImageError(p.id_produit, 'specialite')}
-                      />
-                      <View style={styles.specialiteOverlay} />
-                    </>
-                  )}
-                  <View style={styles.specialiteInfo}>
-                    <Text style={styles.specialiteNom} numberOfLines={1}>{p.nom_produit}</Text>
-                  </View>
-                </View>
-              );
-            })}
-          </ScrollView>
-        )}
-
-        {/* ─── POPULAIRES ─────────────────────────────────── */}
-        <View style={[styles.sectionHeader, { marginTop: SPACING.lg }]}>
-          <View>
-            <Text style={styles.sectionTitle}>
-              Plats <Text style={styles.accent}>Disponibles</Text>
-            </Text>
-          </View>
-        </View>
-
-        {loading ? (
-          <View style={styles.grid}>
-            {[1, 2, 3, 4].map(i => <ProductSkeleton key={i} />)}
-          </View>
-        ) : (
-          <View style={styles.grid}>
-            {produits.map(p => {
-              const isAdded = addedIds[p.id_produit];
-              const hasImageError = imageErrors[`produit-${p.id_produit}`];
-              return (
-                <View key={p.id_produit} style={styles.produitCard}>
-                  <View style={styles.produitImgWrap}>
-                    {hasImageError || !p.img_url ? (
-                      <View style={styles.produitImageFallback}>
-                        <Ionicons name="restaurant-outline" size={40} color={COLORS.text.disabled} />
+          {loading ? (
+            <View style={styles.grid}>
+              {[1, 2, 3, 4].map(i => <ProductSkeleton key={i} />)}
+            </View>
+          ) : produitsFiltres.length === 0 ? (
+            <View style={styles.emptyState}>
+              <Ionicons name="restaurant-outline" size={44} color={COLORS.text.disabled} />
+              <Text style={styles.emptyStateText}>Aucun plat dans  pour le moment</Text>
+            </View>
+          ) : (
+            <View style={styles.grid}>
+              {produitsFiltres.map(p => {
+                const isAdded = addedIds[p.id_produit];
+                const hasImageError = imageErrors[p.id_produit];
+                const enRupture = p.stock !== undefined && p.stock !== null && p.stock <= 0;
+                return (
+                  <View key={p.id_produit} style={[styles.produitCard, enRupture && styles.produitCardRupture]}>
+                    <View style={styles.produitImgWrap}>
+                      {hasImageError || !p.img_url ? (
+                        <View style={styles.produitImageFallback}>
+                          <Ionicons name="restaurant-outline" size={36} color={COLORS.text.disabled} />
+                        </View>
+                      ) : (
+                        <Image
+                          source={{ uri: p.img_url }}
+                          style={styles.produitImg}
+                          onError={() => handleImageError(p.id_produit)}
+                        />
+                      )}
+                      <View style={styles.priceBadge}>
+                        <Text style={styles.priceText}>{p.Prix} F</Text>
                       </View>
-                    ) : (
-                      <Image
-                        source={{ uri: p.img_url }}
-                        style={styles.produitImg}
-                        onError={() => handleImageError(p.id_produit, 'produit')}
-                      />
-                    )}
-                    <View style={styles.priceBadge}>
-                      <Text style={styles.priceText}>{p.Prix} F</Text>
+                      {enRupture && (
+                        <View style={styles.ruptureOverlay}>
+                          <Text style={styles.ruptureText}>Épuisé</Text>
+                        </View>
+                      )}
+                    </View>
+                    <View style={styles.produitBody}>
+                      <Text style={styles.produitNom} numberOfLines={2}>{p.nom_produit}</Text>
+                      <Text style={styles.produitDesc} numberOfLines={1}>{p.description}</Text>
+                      <TouchableOpacity
+                        style={[
+                          styles.commanderBtn,
+                          isAdded && styles.commanderBtnAdded,
+                          enRupture && styles.commanderBtnDisabled,
+                        ]}
+                        onPress={() => !enRupture && handleAddToCart(p)}
+                        activeOpacity={0.8}
+                        disabled={enRupture}
+                      >
+                        <Ionicons
+                          name={isAdded ? 'checkmark-circle' : enRupture ? 'close-circle-outline' : 'basket-outline'}
+                          size={16}
+                          color="#fff"
+                        />
+                        <Text style={styles.commanderBtnText}>
+                          {enRupture ? 'Indisponible' : isAdded ? 'Ajouté' : 'Commander'}
+                        </Text>
+                      </TouchableOpacity>
                     </View>
                   </View>
-                  <View style={styles.produitBody}>
-                    <Text style={styles.produitNom} numberOfLines={2}>{p.nom_produit}</Text>
-                    <Text style={styles.produitDesc} numberOfLines={1}>{p.description}</Text>
-                    <View style={styles.starsRow}>
-                      {[1, 2, 3, 4, 5].map(s => (
-                        <Ionicons key={s} name="star" size={11} color="#F5C518" />
-                      ))}
-                      <Text style={styles.ratingText}> 5.0</Text>
-                    </View>
-                    <TouchableOpacity
-                      style={[styles.commanderBtn, isAdded && styles.commanderBtnAdded]}
-                      onPress={() => handleAddToCart(p)}
-                      activeOpacity={0.8}
-                    >
-                      <Ionicons
-                        name={isAdded ? 'checkmark-circle' : 'bag-add-outline'}
-                        size={16}
-                        color="#fff"
-                      />
-                      <Text style={styles.commanderBtnText}>
-                        {isAdded ? 'Ajouté !' : 'Commander'}
-                      </Text>
-                    </TouchableOpacity>
-                  </View>
-                </View>
-              );
-            })}
-          </View>
-        )}
+                );
+              })}
+            </View>
+          )}
 
-        <View style={{ height: 20 }} />
-      </ScrollView>
-      
-    </View>
+          <View style={{ height: 24 }} />
+        </ScrollView>
+      </View>
     </SafeAreaView>
   );
 }
@@ -316,159 +294,90 @@ const styles = StyleSheet.create({
     paddingTop: SPACING.sm,
     paddingBottom: SPACING.md,
   },
-  headerLeft: { flex: 1, paddingRight: SPACING.sm },
-  salutation: { fontSize: 13, color: COLORS.text.secondary, fontWeight: '500' },
-  userName: { fontSize: 22, fontWeight: '900', color: COLORS.text.primary, letterSpacing: -0.5 },
-  headerRight: {},
-  notifBtn: {
-    width: 44, height: 44, borderRadius: RADIUS.full,
-    backgroundColor: COLORS.surface,
-    alignItems: 'center', justifyContent: 'center',
-    ...SHADOWS.light,
-  },
-  notifDot: {
-    position: 'absolute', top: 11, right: 11,
-    width: 9, height: 9, borderRadius: 5,
-    backgroundColor: COLORS.error,
-    borderWidth: 2, borderColor: COLORS.surface,
-  },
+  headerLeft: { flex: 1 },
+  salutationRow: { flexDirection: 'row', alignItems: 'center', gap: 5 },
+  salutation: { fontSize: 13, color: COLORS.text.secondary, fontWeight: '600' },
+  userName: { fontSize: 23, fontWeight: '900', color: COLORS.text.primary, letterSpacing: -0.5, marginTop: 2 },
 
-  // Hero
+  // Hero — signature element : anneaux concentriques + badge live
   hero: {
     marginHorizontal: SPACING.md,
-    marginBottom: SPACING.md,
+    marginBottom: SPACING.lg,
     borderRadius: RADIUS.xl,
     backgroundColor: COLORS.primary,
     overflow: 'hidden',
     flexDirection: 'row',
-    minHeight: 180,
+    minHeight: 190,
     ...SHADOWS.medium,
   },
-  heroDecorTop: {
-    position: 'absolute', top: -40, right: -40,
-    width: 140, height: 140, borderRadius: 70,
-    backgroundColor: 'rgba(255,255,255,0.08)',
+  heroPattern: {
+    position: 'absolute', top: 0, bottom: 0, right: -20,
+    alignItems: 'center', justifyContent: 'center',
   },
-  heroDecorBottom: {
-    position: 'absolute', bottom: -30, left: -30,
-    width: 100, height: 100, borderRadius: 50,
-    backgroundColor: 'rgba(0,0,0,0.06)',
+  heroPatternRing: {
+    position: 'absolute',
+    borderRadius: 999,
+    borderWidth: 1.5,
+    borderColor: '#fff',
   },
   heroContent: {
     flex: 1, padding: SPACING.lg, justifyContent: 'center', zIndex: 1,
   },
   heroBadge: {
-    flexDirection: 'row', alignItems: 'center', gap: 5,
-    backgroundColor: 'rgba(255,255,255,0.18)',
+    flexDirection: 'row', alignItems: 'center', gap: 6,
+    backgroundColor: 'rgba(255,255,255,0.16)',
     borderRadius: RADIUS.full, alignSelf: 'flex-start',
-    paddingHorizontal: 10, paddingVertical: 4, marginBottom: SPACING.sm,
+    paddingHorizontal: 10, paddingVertical: 5, marginBottom: SPACING.sm,
   },
   heroBadgeDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: '#4ade80' },
-  heroBadgeText: { fontSize: 11, color: '#fff', fontWeight: '700' },
+  heroBadgeText: { fontSize: 10, color: '#fff', fontWeight: '700' },
   heroTitle: {
-    fontSize: 24, fontWeight: '900', color: '#fff',
-    lineHeight: 30, marginBottom: SPACING.sm,
+    fontSize: 25, fontWeight: '900', color: '#fff',
+    lineHeight: 30, marginBottom: SPACING.sm, letterSpacing: -0.5,
   },
-  heroAccent: { color: 'rgba(255,255,255,0.7)' },
-  heroSub: { fontSize: 12, color: 'rgba(255,255,255,0.75)', marginBottom: SPACING.md },
-  heroBtn: {
-    flexDirection: 'row', alignItems: 'center', gap: 4,
-    backgroundColor: '#fff', borderRadius: RADIUS.full,
-    paddingHorizontal: SPACING.md, paddingVertical: SPACING.sm,
-    alignSelf: 'flex-start',
-  },
-  heroBtnText: { fontSize: 13, fontWeight: '800', color: COLORS.primary },
+  heroAccent: { color: COLORS.accent },
+  heroSub: { fontSize: 12, color: 'rgba(255,255,255,0.8)', fontWeight: '500' },
   heroImageWrap: {
-    width: 140, justifyContent: 'center', alignItems: 'center', padding: SPACING.md,
+    width: 120, justifyContent: 'center', alignItems: 'center', padding: SPACING.md,
   },
   heroImageBg: {
-    position: 'absolute', width: 120, height: 120, borderRadius: 60,
-    backgroundColor: 'rgba(255,255,255,0.12)',
+    position: 'absolute', width: 100, height: 100, borderRadius: 50,
+    backgroundColor: 'rgba(255,255,255,0.14)',
   },
-  heroImage: { width: 110, height: 110, borderRadius: RADIUS.xl, opacity: 0.95 },
-  floatingPrice: {
-    position: 'absolute', bottom: 16, right: 12,
-    backgroundColor: '#fff', borderRadius: RADIUS.md,
-    paddingHorizontal: 8, paddingVertical: 4,
-    ...SHADOWS.light,
-  },
-  floatingPriceText: { fontSize: 9, color: COLORS.text.secondary, fontWeight: '600' },
-  floatingPriceVal: { fontSize: 12, fontWeight: '900', color: COLORS.primary },
+  heroImage: { width: 92, height: 92, borderRadius: RADIUS.lg, opacity: 0.97 },
 
-  // Avantages
-  avantagesRow: {
+  // Catégories
+  categoriesRow: {
     paddingHorizontal: SPACING.md,
-    paddingVertical: SPACING.md,
+    paddingBottom: SPACING.md,
     gap: SPACING.sm,
   },
-  avantageCard: {
+  categoryChip: {
+    paddingHorizontal: 16, paddingVertical: 9,
+    borderRadius: RADIUS.full,
     backgroundColor: COLORS.surface,
-    borderRadius: RADIUS.lg,
-    padding: SPACING.md,
-    width: 90,
-    alignItems: 'center',
-    borderTopWidth: 3,
-    ...SHADOWS.light,
+    borderWidth: 1, borderColor: COLORS.border,
   },
-  avantageIconWrap: {
-    width: 42, height: 42, borderRadius: RADIUS.md,
-    alignItems: 'center', justifyContent: 'center',
-    marginBottom: SPACING.sm,
+  categoryChipActive: {
+    backgroundColor: COLORS.text.primary,
+    borderColor: COLORS.text.primary,
   },
-  avantageLabel: {
-    fontSize: 11, fontWeight: '700', color: COLORS.text.primary,
-    textAlign: 'center', lineHeight: 15,
-  },
+  categoryChipText: { fontSize: 13, fontWeight: '700', color: COLORS.text.secondary },
+  categoryChipTextActive: { color: '#fff' },
 
   // Sections
   sectionHeader: {
-    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end',
+    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
     paddingHorizontal: SPACING.md, marginBottom: SPACING.sm,
   },
-  sectionEyebrow: {
-    fontSize: 11, fontWeight: '800', color: COLORS.primary,
-    textTransform: 'uppercase', letterSpacing: 1.5, marginBottom: 2,
-  },
-  sectionTitle: { fontSize: 20, fontWeight: '900', color: COLORS.text.primary },
-  accent: { color: COLORS.primary },
-  seeAllBtn: {
-    flexDirection: 'row', alignItems: 'center', gap: 2,
-    backgroundColor: COLORS.primary + '12',
-    borderRadius: RADIUS.full, paddingHorizontal: 10, paddingVertical: 5,
-  },
-  seeAllText: { fontSize: 13, color: COLORS.primary, fontWeight: '700' },
+  sectionTitle: { fontSize: 19, fontWeight: '900', color: COLORS.text.primary, letterSpacing: -0.3 },
+  sectionCount: { fontSize: 12, color: COLORS.text.disabled, fontWeight: '600' },
 
-  // Spécialités
-  specialitesRow: {
-    paddingHorizontal: SPACING.md,
-    paddingBottom: SPACING.sm,
-    gap: SPACING.sm,
-  },
-  specialiteCard: {
-    width: 160, height: 120,
-    borderRadius: RADIUS.lg,
-    overflow: 'hidden',
-    ...SHADOWS.light,
-  },
-  specialiteImg: { width: '100%', height: '100%' },
-  specialiteImageFallback: {
-    width: '100%', height: '100%',
-    backgroundColor: COLORS.background,
+  emptyState: {
     alignItems: 'center', justifyContent: 'center',
+    paddingVertical: SPACING.xxl, paddingHorizontal: SPACING.lg, gap: SPACING.sm,
   },
-  specialiteOverlay: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(0,0,0,0.28)',
-  },
-  specialiteInfo: {
-    position: 'absolute', bottom: 0, left: 0, right: 0,
-    padding: SPACING.sm,
-  },
-  specialiteNom: {
-    fontSize: 13, fontWeight: '800', color: '#fff',
-    textShadowColor: 'rgba(0,0,0,0.5)',
-    textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 3,
-  },
+  emptyStateText: { fontSize: 13, color: COLORS.text.secondary, textAlign: 'center' },
 
   // Grille produits
   grid: {
@@ -483,10 +392,11 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     ...SHADOWS.medium,
   },
+  produitCardRupture: { opacity: 0.75 },
   produitImgWrap: { position: 'relative' },
-  produitImg: { width: '100%', height: 140 },
+  produitImg: { width: '100%', height: 130 },
   produitImageFallback: {
-    width: '100%', height: 140,
+    width: '100%', height: 130,
     backgroundColor: COLORS.background,
     alignItems: 'center', justifyContent: 'center',
   },
@@ -497,16 +407,21 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8, paddingVertical: 3,
   },
   priceText: { fontSize: 11, fontWeight: '900', color: '#fff' },
+  ruptureOverlay: {
+    position: 'absolute', bottom: 0, left: 0, right: 0,
+    backgroundColor: 'rgba(26,26,46,0.75)',
+    paddingVertical: 5, alignItems: 'center',
+  },
+  ruptureText: { fontSize: 11, fontWeight: '800', color: '#fff', letterSpacing: 0.5 },
   produitBody: { padding: SPACING.sm + 2, paddingTop: SPACING.sm },
   produitNom: { fontSize: 14, fontWeight: '800', color: COLORS.text.primary, lineHeight: 18, marginBottom: 2 },
-  produitDesc: { fontSize: 11, color: COLORS.text.disabled, marginBottom: 6 },
-  starsRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 8 },
-  ratingText: { fontSize: 11, color: COLORS.text.secondary, fontWeight: '700' },
+  produitDesc: { fontSize: 11, color: COLORS.text.disabled, marginBottom: 10 },
   commanderBtn: {
     backgroundColor: COLORS.primary, borderRadius: RADIUS.md,
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
     gap: 5, paddingVertical: 9,
   },
   commanderBtnAdded: { backgroundColor: COLORS.success },
+  commanderBtnDisabled: { backgroundColor: COLORS.text.disabled },
   commanderBtnText: { fontSize: 12, fontWeight: '800', color: '#fff' },
 });

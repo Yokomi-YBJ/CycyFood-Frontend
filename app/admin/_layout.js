@@ -5,7 +5,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 export default function AdminLayout() {
   const insets = useSafeAreaInsets();
-    const BASE_HEIGHT = 60;
+  const BASE_HEIGHT = 60;
   return (
     <Tabs
       screenOptions={{
@@ -21,8 +21,8 @@ export default function AdminLayout() {
           shadowOpacity: 0.08,
           shadowRadius: 12,
           paddingTop: 8,
-          height: BASE_HEIGHT + insets.bottom, 
-          paddingBottom: insets.bottom > 0 ? insets.bottom : 0, 
+          height: BASE_HEIGHT + insets.bottom,
+          paddingBottom: insets.bottom > 0 ? insets.bottom : 0,
         },
         tabBarLabelStyle: { fontSize: 11, fontWeight: '700' },
       }}
@@ -70,6 +70,17 @@ export default function AdminLayout() {
           tabBarIcon: ({ color, size }) => (
             <Ionicons name="shield-outline" size={size} color={color} />
           ),
+        }}
+      />
+      {/*
+        Écran secondaire (détail d'un client) : accessible uniquement via
+        router.push depuis commandes.js ou index.js, jamais depuis la tab bar.
+      */}
+      <Tabs.Screen
+        name="client/[id]"
+        options={{
+          href: null,
+          tabBarStyle: { display: 'none' },
         }}
       />
     </Tabs>

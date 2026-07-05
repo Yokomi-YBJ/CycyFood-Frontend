@@ -10,14 +10,18 @@ import { Ionicons } from '@expo/vector-icons';
 import { useCart } from '../../context/CartContext';
 import { useAuth } from '../../context/AuthContext';
 import { useAlert } from '../../context/AlertContext';
+import { useCommandeLimit } from '../../context/CommandeLimitContext';
 import { ENDPOINTS } from '../../constants/api';
 import { COLORS, SPACING, RADIUS, SHADOWS } from '../../constants/theme';
+
+const MAX_QUANTITE_PAR_PRODUIT = 4;
 
 export default function PanierScreen() {
   const insets = useSafeAreaInsets();
   const { cart, removeFromCart, incrementQuantite, decrementQuantite, viderPanier, totalPrix, totalArticles } = useCart();
   const { token } = useAuth();
   const { showAlert } = useAlert();
+  const { peutCommander, nbEnAttente, incrementer, MAX_COMMANDES_EN_ATTENTE } = useCommandeLimit();
   const [loading, setLoading] = useState(false);
   const [livraison, setLivraison] = useState(false);
 
@@ -29,6 +33,17 @@ export default function PanierScreen() {
       showAlert({ title: 'Panier vide', message: 'Ajoutez des plats depuis l\'accueil.', type: 'warning' });
       return;
     }
+
+    // Vérification locale immédiate (confort UX) — le serveur revérifie systématiquement.
+    if (!peutCommander) {
+      showAlert({
+        title: 'Limite atteinte',
+        message: `Vous avez déjà ${MAX_COMMANDES_EN_ATTENTE} commandes en attente. Patientez qu'elles soient traitées avant d'en passer une nouvelle.`,
+        type: 'warning',
+      });
+      return;
+    }
+
     showAlert({
       title: 'Confirmer la commande',
       message: `Total : ${totalFinal} Fcfa${livraison ? '\nLivraison incluse (+' + FRAIS_LIVRAISON + ' Fcfa)' : '\nRetrait sur place'}`,
@@ -42,19 +57,32 @@ export default function PanierScreen() {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
             body: JSON.stringify({
-              produits: cart.map(item => ({ id: item.id_produit, quantite: item.quantite })),
-              prixTotal: totalFinal,
+              produits: cart.map(item => ({
+                id: item.id_produit,
+                quantite: Math.min(item.quantite, MAX_QUANTITE_PAR_PRODUIT),
+              })),
               avec_livraison: livraison,
             }),
           });
           const data = await res.json();
+
           if (data.status === 'success') {
             viderPanier();
+            incrementer();
+
+            // Le serveur peut avoir ajusté certaines quantités par manque de stock.
+            const messageAjustements = data.ajustements?.length > 0
+              ? '\n\n' + data.ajustements.join('\n')
+              : '';
+
             showAlert({
-              title: '✅ Commande envoyée !',
-              message: `Votre commande a bien été enregistrée.${livraison ? '\n🛵 Livraison incluse.' : '\nPassez récupérer votre commande sur place.'}`,
-              type: 'success',
+              title: 'Commande envoyée',
+              message: `Votre commande a bien été enregistrée.${livraison ? '\nLivraison incluse.' : '\nPassez récupérer votre commande sur place.'}${messageAjustements}`,
+              type: data.ajustements?.length > 0 ? 'warning' : 'success',
             });
+          } else if (res.status === 429) {
+            // Limite anti-spam refusée côté serveur (cas de désynchronisation avec le compteur local)
+            showAlert({ title: 'Limite atteinte', message: data.message, type: 'warning' });
           } else {
             showAlert({ title: 'Erreur', message: data.message, type: 'error' });
           }
@@ -67,54 +95,65 @@ export default function PanierScreen() {
     });
   };
 
-  const renderItem = ({ item }) => (
-    <View style={styles.itemCard}>
-      <Image
-        source={{ uri: item.img_url }}
-        style={styles.itemImg}
-        defaultSource={require('../../assets/placeholder.png')}
-      />
-      <View style={styles.itemInfo}>
-        <Text style={styles.itemNom} numberOfLines={1}>{item.nom_produit}</Text>
-        <Text style={styles.itemPrixUnit}>{item.Prix} Fcfa / unité</Text>
-        <View style={styles.qtyRow}>
+  const renderItem = ({ item }) => {
+    const stockLimit = item.stock !== undefined && item.stock !== null ? item.stock : MAX_QUANTITE_PAR_PRODUIT;
+    const estLimiteStock = item.stock !== undefined && item.stock !== null && item.stock < MAX_QUANTITE_PAR_PRODUIT && item.quantite >= item.stock;
+    const atteintMax = item.quantite >= MAX_QUANTITE_PAR_PRODUIT || estLimiteStock;
+    return (
+      <View style={styles.itemCard}>
+        <Image
+          source={{ uri: item.img_url }}
+          style={styles.itemImg}
+          defaultSource={require('../../assets/placeholder.png')}
+        />
+        <View style={styles.itemInfo}>
+          <Text style={styles.itemNom} numberOfLines={1}>{item.nom_produit}</Text>
+          <Text style={styles.itemPrixUnit}>{item.Prix} Fcfa / unité</Text>
+          <View style={styles.qtyRow}>
+            <TouchableOpacity
+              style={styles.qtyBtn}
+              onPress={() => decrementQuantite(item.id_produit)}
+            >
+              <Ionicons name="remove" size={16} color={COLORS.primary} />
+            </TouchableOpacity>
+            <Text style={styles.qtyText}>{item.quantite}</Text>
+            <TouchableOpacity
+              style={[styles.qtyBtn, atteintMax && styles.qtyBtnDisabled]}
+              onPress={() => !atteintMax && incrementQuantite(item.id_produit)}
+              disabled={atteintMax}
+            >
+              <Ionicons name="add" size={16} color={atteintMax ? COLORS.text.disabled : COLORS.primary} />
+            </TouchableOpacity>
+          </View>
+          {atteintMax && (
+            <Text style={styles.maxHint}>
+              {estLimiteStock ? `Seulement ${item.stock} unité(s) disponible(s)` : `Maximum ${MAX_QUANTITE_PAR_PRODUIT} par plat`}
+            </Text>
+          )}
+        </View>
+        <View style={styles.itemRight}>
+          <Text style={styles.itemTotal}>{item.Prix * item.quantite} Fcfa</Text>
           <TouchableOpacity
-            style={styles.qtyBtn}
-            onPress={() => decrementQuantite(item.id_produit)}
+            style={styles.deleteBtn}
+            onPress={() => removeFromCart(item.id_produit)}
           >
-            <Ionicons name="remove" size={16} color={COLORS.primary} />
-          </TouchableOpacity>
-          <Text style={styles.qtyText}>{item.quantite}</Text>
-          <TouchableOpacity
-            style={styles.qtyBtn}
-            onPress={() => incrementQuantite(item.id_produit)}
-          >
-            <Ionicons name="add" size={16} color={COLORS.primary} />
+            <Ionicons name="trash-outline" size={18} color={COLORS.error} />
           </TouchableOpacity>
         </View>
       </View>
-      <View style={styles.itemRight}>
-        <Text style={styles.itemTotal}>{item.Prix * item.quantite} Fcfa</Text>
-        <TouchableOpacity
-          style={styles.deleteBtn}
-          onPress={() => removeFromCart(item.id_produit)}
-        >
-          <Ionicons name="trash-outline" size={18} color={COLORS.error} />
-        </TouchableOpacity>
-      </View>
-    </View>
-  );
+    );
+  };
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
      <StatusBar style="light" backgroundColor={COLORS.primary} />
-      <View style={[styles.content, { paddingTop: insets.top + 8 }]}>
+      <View style={[styles.content, { paddingTop: insets.top - 28  }]}>
 
         {/* Header */}
         <View style={styles.header}>
           <View>
             <Text style={styles.headerEyebrow}>Vos sélections</Text>
-            <Text style={styles.headerTitle}>Mon Panier</Text>
+            <Text style={styles.headerTitle}>Mon panier</Text>
           </View>
           {cart.length > 0 && (
             <TouchableOpacity style={styles.clearBtn} onPress={viderPanier}>
@@ -124,6 +163,20 @@ export default function PanierScreen() {
           )}
         </View>
 
+        {/* Bandeau limite anti-spam */}
+        {nbEnAttente > 0 && (
+          <View style={[styles.limiteBanner, !peutCommander && styles.limiteBannerAlerte]}>
+            <Ionicons
+              name={peutCommander ? 'information-circle-outline' : 'alert-circle-outline'}
+              size={16}
+              color={peutCommander ? COLORS.info : COLORS.warning}
+            />
+            <Text style={[styles.limiteText, !peutCommander && { color: COLORS.warning }]}>
+              {nbEnAttente}/{MAX_COMMANDES_EN_ATTENTE} commande(s) en attente de traitement
+            </Text>
+          </View>
+        )}
+
         {cart.length === 0 ? (
           <View style={styles.empty}>
             <View style={styles.emptyIconWrap}>
@@ -131,7 +184,7 @@ export default function PanierScreen() {
             </View>
             <Text style={styles.emptyTitle}>Panier vide</Text>
             <Text style={styles.emptyText}>
-              Explorez nos spécialités et ajoutez vos plats préférés !
+              Explorez nos plats et ajoutez vos préférés.
             </Text>
           </View>
         ) : (
@@ -191,16 +244,22 @@ export default function PanierScreen() {
 
               {/* CTA */}
               <TouchableOpacity
-                style={[styles.orderBtn, loading && { opacity: 0.7 }]}
+                style={[styles.orderBtn, (loading || !peutCommander) && { opacity: 0.6 }]}
                 onPress={passerCommande}
-                disabled={loading}
+                disabled={loading || !peutCommander}
               >
                 {loading ? (
                   <ActivityIndicator color="#fff" />
                 ) : (
                   <>
-                    <Ionicons name="checkmark-circle-outline" size={20} color="#fff" />
-                    <Text style={styles.orderBtnText}>Commander maintenant</Text>
+                    <Ionicons
+                      name={peutCommander ? 'checkmark-circle-outline' : 'lock-closed-outline'}
+                      size={20}
+                      color="#fff"
+                    />
+                    <Text style={styles.orderBtnText}>
+                      {peutCommander ? 'Commander maintenant' : 'Limite de commandes atteinte'}
+                    </Text>
                   </>
                 )}
               </TouchableOpacity>
@@ -232,6 +291,15 @@ const styles = StyleSheet.create({
   },
   clearText: { fontSize: 13, color: COLORS.error, fontWeight: '700' },
 
+  limiteBanner: {
+    flexDirection: 'row', alignItems: 'center', gap: 8,
+    marginHorizontal: SPACING.md, marginBottom: SPACING.sm,
+    backgroundColor: COLORS.info + '12', borderRadius: RADIUS.md,
+    paddingHorizontal: SPACING.md, paddingVertical: SPACING.sm,
+  },
+  limiteBannerAlerte: { backgroundColor: COLORS.warning + '15' },
+  limiteText: { fontSize: 12, color: COLORS.info, fontWeight: '600', flex: 1 },
+
   empty: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: SPACING.xxl },
   emptyIconWrap: {
     width: 110, height: 110, borderRadius: 55, backgroundColor: COLORS.surface,
@@ -261,10 +329,12 @@ const styles = StyleSheet.create({
     borderWidth: 1, borderColor: COLORS.border, alignSelf: 'flex-start',
   },
   qtyBtn: { width: 30, height: 30, alignItems: 'center', justifyContent: 'center' },
+  qtyBtnDisabled: { opacity: 0.4 },
   qtyText: {
     minWidth: 28, textAlign: 'center',
     fontSize: 15, fontWeight: '800', color: COLORS.text.primary,
   },
+  maxHint: { fontSize: 10, color: COLORS.warning, marginTop: 4, fontWeight: '600' },
   itemRight: { alignItems: 'flex-end', justifyContent: 'space-between', height: 76 },
   itemTotal: { fontSize: 14, fontWeight: '900', color: COLORS.primary },
   deleteBtn: {
@@ -333,5 +403,5 @@ const styles = StyleSheet.create({
     shadowRadius: 12,
     elevation: 8,
   },
-  orderBtnText: { fontSize: 17, fontWeight: '800', color: '#fff' },
+  orderBtnText: { fontSize: 16, fontWeight: '800', color: '#fff' },
 });

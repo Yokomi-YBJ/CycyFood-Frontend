@@ -17,6 +17,22 @@ import { COLORS, SPACING, RADIUS, SHADOWS } from '../../constants/theme';
 const CATEGORIES = ['Plat', 'Boisson', 'Dessert', 'Entrée', 'Snack', 'Fruit', 'Autre'];
 const FORM_VIDE = { nom_produit: '', description: '', Prix: '', stock: '', categorie: 'Plat', disponible: 1 };
 
+// ── Sélecteur de type de média robuste aux différentes versions d'expo-image-picker ──
+// Sur certaines versions, l'énumération est `MediaType.images` (minuscule),
+// sur d'autres l'ancienne API `MediaTypeOptions.Images` (majuscule) est utilisée.
+// On construit dynamiquement l'option pour ne jamais planter avec "Cannot read
+// property 'Images' of undefined".
+const getMediaTypeOption = () => {
+  if (ImagePicker.MediaType && ImagePicker.MediaType.images) {
+    return [ImagePicker.MediaType.images];
+  }
+  if (ImagePicker.MediaTypeOptions && ImagePicker.MediaTypeOptions.Images) {
+    return ImagePicker.MediaTypeOptions.Images;
+  }
+  // Dernier recours : chaîne littérale acceptée par la lib native dans tous les cas
+  return ['images'];
+};
+
 const ProduitsSkeleton = () => (
   <View style={{ padding: SPACING.md }}>
     {[1, 2, 3, 4].map(i => (
@@ -56,8 +72,9 @@ export default function AdminProduits() {
       const res = await fetch(ENDPOINTS.adminProduits, {
         headers: { Authorization: `Bearer ${token}` },
       });
-      const data = await res.json();
-      if (data.status === 'success') setProduits(data.produits);
+      const raw = await res.text();
+      const data = raw ? JSON.parse(raw) : null;
+      if (data && data.status === 'success') setProduits(data.produits);
     } catch (e) {
       showAlert({ title: 'Erreur', message: 'Impossible de charger les produits.', type: 'error' });
     } finally {
@@ -94,22 +111,33 @@ export default function AdminProduits() {
   };
 
   const choisirImage = async () => {
-    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (status !== 'granted') {
-      showAlert({ title: 'Permission refusée', message: 'Autorisez l\'accès à la galerie.', type: 'error' });
-      return;
-    }
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: [ImagePicker.MediaType.Images],
-      allowsEditing: true,
-      aspect: [1, 1],
-      quality: 0.8,
-    });
-    if (!result.canceled && result.assets[0]) {
-      const asset = result.assets[0];
-      const name = asset.uri.split('/').pop();
-      const type = name.endsWith('.png') ? 'image/png' : 'image/jpeg';
-      setImageLocale({ uri: asset.uri, name, type });
+    try {
+      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (status !== 'granted') {
+        showAlert({ title: 'Permission refusée', message: 'Autorisez l\'accès à la galerie.', type: 'error' });
+        return;
+      }
+
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: getMediaTypeOption(),
+        allowsEditing: true,
+        aspect: [1, 1],
+        quality: 0.8,
+      });
+
+      if (!result.canceled && result.assets && result.assets[0]) {
+        const asset = result.assets[0];
+        const name = asset.uri.split('/').pop() || `image_${Date.now()}.jpg`;
+        const type = name.toLowerCase().endsWith('.png') ? 'image/png' : 'image/jpeg';
+        setImageLocale({ uri: asset.uri, name, type });
+      }
+    } catch (err) {
+      console.error('Erreur choisirImage:', err);
+      showAlert({
+        title: 'Erreur',
+        message: 'Impossible d\'ouvrir la galerie. Réessayez.',
+        type: 'error',
+      });
     }
   };
 
@@ -143,16 +171,38 @@ export default function AdminProduits() {
         headers: { Authorization: `Bearer ${token}` },
         body: formData,
       });
-      const data = await res.json();
+
+      // Le serveur peut renvoyer un corps vide (erreur 500 sans JSON,
+      // timeout proxy, etc.) : on lit le texte brut et on parse nous-mêmes
+      // pour éviter le crash "Unexpected end of input" de res.json().
+      const raw = await res.text();
+      let data = null;
+      try {
+        data = raw ? JSON.parse(raw) : null;
+      } catch (parseErr) {
+        console.error('Réponse non-JSON du serveur:', raw);
+        showAlert({
+          title: 'Erreur serveur',
+          message: `Réponse invalide du serveur (code ${res.status}). Réessayez plus tard.`,
+          type: 'error',
+        });
+        return;
+      }
+
+      if (!data) {
+        showAlert({ title: 'Erreur serveur', message: `Réponse vide du serveur (code ${res.status}).`, type: 'error' });
+        return;
+      }
 
       if (data.status === 'success') {
         setModalVisible(false);
         fetchProduits();
-        showAlert({ title: 'Succès', message: modeEdition ? 'Produit modifié !' : 'Produit ajouté !', type: 'success' });
+        showAlert({ title: 'Succès', message: modeEdition ? 'Produit modifié.' : 'Produit ajouté.', type: 'success' });
       } else {
-        showAlert({ title: 'Erreur', message: data.message, type: 'error' });
+        showAlert({ title: 'Erreur', message: data.message || 'Une erreur est survenue.', type: 'error' });
       }
     } catch (e) {
+      console.error('Erreur sauvegarder:', e);
       showAlert({ title: 'Erreur', message: 'Vérifiez la connexion au serveur.', type: 'error' });
     } finally {
       setSaving(false);
@@ -198,7 +248,7 @@ export default function AdminProduits() {
 
   const renderProduit = ({ item }) => {
     const hasImageError = imageErrors[item.id_produit];
-    
+
     return (
       <View style={[styles.produitCard, !item.disponible && { opacity: 0.6 }]}>
         {hasImageError || !item.img_url ? (
@@ -213,7 +263,7 @@ export default function AdminProduits() {
             onError={() => handleImageError(item.id_produit)}
           />
         )}
-        
+
         <View style={styles.produitInfo}>
           <View style={styles.produitTitreRow}>
             <Text style={styles.produitNom} numberOfLines={1}>{item.nom_produit}</Text>
@@ -227,7 +277,7 @@ export default function AdminProduits() {
             <Text style={styles.produitStock}>Stock : {item.stock || 0}</Text>
           </View>
         </View>
-        
+
         <View style={styles.produitActions}>
           <TouchableOpacity style={styles.actionBtn} onPress={() => ouvrirModifier(item)}>
             <Ionicons name="pencil" size={16} color="#2196F3" />
@@ -254,7 +304,7 @@ export default function AdminProduits() {
     <SafeAreaView style={styles.container} edges={['top']}>
       <View style={{ flex: 1, backgroundColor: COLORS.background }}>
         <StatusBar barStyle="light-content" backgroundColor={COLORS.primary} />
-        
+
         <Modal visible={modalVisible} animationType="slide" transparent>
           <View style={styles.modalOverlay}>
             <View style={styles.modalContainer}>
@@ -264,14 +314,14 @@ export default function AdminProduits() {
                   <Ionicons name="close" size={24} color={COLORS.text.primary} />
                 </TouchableOpacity>
               </View>
-              
+
               <ScrollView style={styles.modalScroll} keyboardShouldPersistTaps="handled">
                 <TouchableOpacity style={styles.imagePickerBtn} onPress={choisirImage}>
                   {imageLocale ? (
                     <Image source={{ uri: imageLocale.uri }} style={styles.imagePreview} />
                   ) : modeEdition && produitEdite && produitEdite.img_url && !imageErrors[`edit-${produitEdite.id_produit}`] ? (
-                    <Image 
-                      source={{ uri: produitEdite.img_url }} 
+                    <Image
+                      source={{ uri: produitEdite.img_url }}
                       style={styles.imagePreview}
                       onError={() => setImageErrors(prev => ({ ...prev, [`edit-${produitEdite.id_produit}`]: true }))}
                     />
@@ -343,7 +393,7 @@ export default function AdminProduits() {
                     <Text style={styles.btnSauvegarderText}>{modeEdition ? 'Sauvegarder' : 'Ajouter'}</Text>
                   )}
                 </TouchableOpacity>
-                
+
                 <View style={{ height: 80 }} />
               </ScrollView>
             </View>
@@ -415,7 +465,6 @@ const styles = StyleSheet.create({
     width: 36, height: 36, borderRadius: RADIUS.md,
     backgroundColor: COLORS.background, alignItems: 'center', justifyContent: 'center',
   },
-  // Modal
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
   modalContainer: {
     backgroundColor: COLORS.surface,

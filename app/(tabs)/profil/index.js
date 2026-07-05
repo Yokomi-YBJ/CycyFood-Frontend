@@ -12,6 +12,7 @@ import { useAuth } from '../../../context/AuthContext';
 import { useCart } from '../../../context/CartContext';
 import { useAlert } from '../../../context/AlertContext';
 import { useTranslation } from '../../../context/LanguageContext';
+import { useConfig } from '../../../context/ConfigContext';
 import { COLORS, SPACING, RADIUS, SHADOWS, TYPOGRAPHY } from '../../../constants/theme';
 
 // ── Composant ligne de menu ──────────────────────────────
@@ -42,6 +43,7 @@ export default function ProfilScreen() {
   const { totalArticles } = useCart();
   const { showAlert } = useAlert();
   const { t, locale, changeLocale } = useTranslation();
+  const { config } = useConfig();
   const router = useRouter();
 
   const initiales = user
@@ -63,8 +65,16 @@ export default function ProfilScreen() {
   };
 
   const ouvrirWhatsApp = () => {
-    const numero = '237691094048';
-    Linking.openURL(`whatsapp://send?phone=+${numero}`)
+    const numero = config.customer_service_number;
+    if (!numero) {
+      showAlert({
+        title: 'Erreur',
+        message: 'Numéro de service client non configuré.',
+        type: 'error',
+      });
+      return;
+    }
+    Linking.openURL(`whatsapp://send?phone=${numero}`)
       .catch(() => Linking.openURL(`https://wa.me/${numero}`));
   };
 
@@ -225,7 +235,7 @@ export default function ProfilScreen() {
             <MenuItem
               icon="code-slash-outline"
               label={t('developed_by')}
-              value="Yokomi Beyea J. & Mbanga David"
+              value="Yokomi Beyea J."
               color={COLORS.text.disabled}
             />
           </View>

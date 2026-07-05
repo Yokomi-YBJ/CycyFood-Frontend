@@ -7,9 +7,28 @@ export function CartProvider({ children }) {
   const [cart, setCart] = useState([]);
 
   const addToCart = (produit) => {
+    const existing = cart.find(item => item.id_produit === produit.id_produit);
+    const currentQty = existing ? existing.quantite : 0;
+
+    // Plafond strict de 4 unités
+    if (currentQty >= 4) {
+      return {
+        success: false,
+        message: 'Vous ne pouvez pas ajouter plus de 4 unités de ce plat.',
+      };
+    }
+
+    // Validation du stock disponible
+    if (produit.stock !== undefined && produit.stock !== null && currentQty >= produit.stock) {
+      return {
+        success: false,
+        message: `Stock insuffisant. Seulement ${produit.stock} unités disponibles.`,
+      };
+    }
+
     setCart(prev => {
-      const existing = prev.find(item => item.id_produit === produit.id_produit);
-      if (existing) {
+      const exists = prev.find(item => item.id_produit === produit.id_produit);
+      if (exists) {
         return prev.map(item =>
           item.id_produit === produit.id_produit
             ? { ...item, quantite: item.quantite + 1 }
@@ -18,6 +37,8 @@ export function CartProvider({ children }) {
       }
       return [...prev, { ...produit, quantite: 1 }];
     });
+
+    return { success: true };
   };
 
   const removeFromCart = (id_produit) => {
@@ -26,11 +47,19 @@ export function CartProvider({ children }) {
 
   const incrementQuantite = (id_produit) => {
     setCart(prev =>
-      prev.map(item =>
-        item.id_produit === id_produit
-          ? { ...item, quantite: item.quantite + 1 }
-          : item
-      )
+      prev.map(item => {
+        if (item.id_produit === id_produit) {
+          const currentQty = item.quantite;
+          const maxAllowed = 4;
+          const stockLimit = item.stock !== undefined && item.stock !== null ? item.stock : 4;
+          const limit = Math.min(maxAllowed, stockLimit);
+          if (currentQty >= limit) {
+            return item;
+          }
+          return { ...item, quantite: currentQty + 1 };
+        }
+        return item;
+      })
     );
   };
 

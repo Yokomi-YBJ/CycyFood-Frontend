@@ -148,8 +148,7 @@ export default function CommandesScreen() {
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
-    <View style={{ flex: 1, backgroundColor: COLORS.background }}>
-
+      <View style={{ flex: 1, backgroundColor: COLORS.background }}>
         <StatusBar style="light" backgroundColor="transparent" translucent={true} />
 
       {/* Header */}

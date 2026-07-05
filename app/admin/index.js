@@ -1,9 +1,8 @@
 // app/admin/index.js
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   View, Text, StyleSheet, FlatList, TouchableOpacity,
-  ActivityIndicator, RefreshControl, StatusBar, Modal,
-  ScrollView, Linking,
+  ActivityIndicator, RefreshControl, StatusBar,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -11,26 +10,7 @@ import { useAuth } from '../../context/AuthContext';
 import { useAlert } from '../../context/AlertContext';
 import { useRouter } from 'expo-router';
 import { ENDPOINTS } from '../../constants/api';
-import { COLORS, SPACING, RADIUS, SHADOWS, TYPOGRAPHY } from '../../constants/theme';
-
-// ─ Utilitaire format de date JJ/MM/AA ──
-const formatDateShort = (dateStr) => {
-  if (!dateStr) return '';
-  const d = new Date(dateStr);
-  if (isNaN(d)) return dateStr;
-  const day   = String(d.getDate()).padStart(2, '0');
-  const month = String(d.getMonth() + 1).padStart(2, '0');
-  const year  = String(d.getFullYear()).slice(-2);
-  return `${day}/${month}/${year}`;
-};
-
-const STATUTS = [
-  { value: 'en_attente',   label: 'En attente',   color: COLORS.warning,  icon: 'time-outline' },
-  { value: 'confirmee',    label: 'Confirmée',    color: COLORS.info,     icon: 'checkmark-circle-outline' },
-  { value: 'en_livraison', label: 'En livraison', color: '#9C27B0',       icon: 'bicycle-outline' },
-  { value: 'livree',       label: 'Livrée',       color: COLORS.success,  icon: 'bag-check-outline' },
-  { value: 'annulee',      label: 'Annulée',      color: COLORS.error,    icon: 'close-circle-outline' },
-];
+import { COLORS, SPACING, RADIUS, SHADOWS } from '../../constants/theme';
 
 const STATUT_CFG = {
   en_attente:   { label: 'En attente',   color: COLORS.warning,   bg: COLORS.warning + '15',   icon: 'time-outline' },
@@ -40,75 +20,68 @@ const STATUT_CFG = {
   annulee:      { label: 'Annulée',      color: COLORS.error,     bg: COLORS.error + '15',     icon: 'close-circle-outline' },
 };
 
-const getTransitions = (statut, avec_livraison) => {
-  if (avec_livraison) {
-    return {
-      en_attente:   ['en_livraison', 'annulee'],
-      en_livraison: ['livree', 'annulee'],
-      confirmee:    ['en_livraison', 'annulee'],
-      livree:       [],
-      annulee:      [],
-    }[statut] || [];
-  } else {
-    return {
-      en_attente: ['confirmee', 'annulee'],
-      confirmee:  ['annulee'],
-      livree:     [],
-      annulee:    [],
-    }[statut] || [];
+// ── Regroupe une liste de commandes par client ───────────
+// Même logique que app/admin/commandes.js — garder ces deux écrans
+// cohérents évite qu'un admin voie deux comportements différents
+// pour une même donnée.
+function regrouperParClient(commandes) {
+  const map = new Map();
+  for (const cmd of commandes) {
+    const key = cmd.id_user;
+    if (!map.has(key)) {
+      map.set(key, {
+        id_user: cmd.id_user,
+        nom_user: cmd.nom_user,
+        prenom_user: cmd.prenom_user,
+        telephone_client: cmd.telephone_client,
+        adresse_user: cmd.adresse_user,
+        commandes: [],
+      });
+    }
+    map.get(key).commandes.push(cmd);
   }
-};
+  return Array.from(map.values()).sort((a, b) => b.commandes.length - a.commandes.length);
+}
 
-const LABELS_ACTION = {
-  confirmee:    'Confirmer la commande',
-  en_livraison: 'Mettre en livraison',
-  livree:       'Marquer comme livrée',
-  annulee:      'Annuler la commande',
-};
-
-function CommandeCard({ item, onPress }) {
-  const cfg = STATUT_CFG[item.statut] || STATUT_CFG.en_attente;
-  const aLivraison = item.avec_livraison === 1 || item.avec_livraison === true;
+function ClientGroupCard({ groupe, onPress }) {
+  const nbCommandes = groupe.commandes.length;
+  const totalMontant = groupe.commandes.reduce((sum, c) => sum + Number(c.prix_commande || 0), 0);
+  const cfg = STATUT_CFG.en_attente;
+  const initiales = `${groupe.nom_user?.[0] || '?'}${groupe.prenom_user?.[0] || ''}`.toUpperCase();
 
   return (
-    <TouchableOpacity style={styles.card} onPress={() => onPress(item)} activeOpacity={0.8}>
-      <View style={styles.cmdHeader}>
-        <Text style={styles.cmdId}>Commande N° {item.id_commande}</Text>
-        <View style={[styles.statutPill, { backgroundColor: cfg.bg }]}>
-          <Ionicons name={cfg.icon} size={13} color={cfg.color} />
-          <Text style={[styles.statutText, { color: cfg.color }]}>{cfg.label}</Text>
+    <TouchableOpacity style={styles.card} onPress={() => onPress(groupe)} activeOpacity={0.75}>
+      <View style={styles.cardRow}>
+        <View style={styles.avatar}>
+          <Text style={styles.avatarText}>{initiales}</Text>
         </View>
-      </View>
 
-      <View style={styles.clientRow}>
-        <View style={styles.clientAvatar}>
-          <Text style={styles.clientAvatarText}>
-            {(item.nom_user?.[0] + item.prenom_user?.[0]).toUpperCase() || '?'}
-          </Text>
-        </View>
         <View style={styles.clientInfo}>
-          <Text style={styles.clientName}>{item.nom_user} {item.prenom_user}</Text>
-          <Text style={styles.clientPhone}>
-            <Ionicons name="location-outline" size={12} color={COLORS.text.secondary} /> {item.adresse_user}
+          <Text style={styles.clientName} numberOfLines={1}>
+            {groupe.nom_user} {groupe.prenom_user}
           </Text>
+          <View style={styles.metaRow}>
+            <Ionicons name="location-outline" size={12} color={COLORS.text.secondary} />
+            <Text style={styles.metaText} numberOfLines={1}>{groupe.adresse_user || 'Adresse inconnue'}</Text>
+          </View>
         </View>
-        <View style={[styles.typeBadge, { backgroundColor: aLivraison ? '#9C27B015' : COLORS.success + '18' }]}>
-          <Ionicons
-            name={aLivraison ? 'bicycle-outline' : 'storefront-outline'}
-            size={11}
-            color={aLivraison ? '#9C27B0' : COLORS.success}
-          />
-          <Text style={[styles.typeBadgeText, { color: aLivraison ? '#9C27B0' : COLORS.success }]}>
-            {aLivraison ? 'Livraison' : 'Retrait'}
-          </Text>
+
+        <View style={styles.cardRight}>
+          <View style={styles.countBadge}>
+            <Text style={styles.countBadgeText}>{nbCommandes}</Text>
+          </View>
+          <Ionicons name="chevron-forward" size={18} color={COLORS.border} />
         </View>
       </View>
 
       <View style={styles.cardFooter}>
-        <Text style={styles.dateText}>
-          {formatDateShort(item.date_commande)} · {item.heure_commande?.slice(0, 5)}
-        </Text>
-        <Text style={styles.prix}>{item.prix_commande} Fcfa</Text>
+        <View style={[styles.statutPill, { backgroundColor: cfg.bg }]}>
+          <Ionicons name={cfg.icon} size={12} color={cfg.color} />
+          <Text style={[styles.statutText, { color: cfg.color }]}>
+            {nbCommandes} en attente
+          </Text>
+        </View>
+        <Text style={styles.montantText}>{totalMontant.toLocaleString()} Fcfa</Text>
       </View>
     </TouchableOpacity>
   );
@@ -121,12 +94,12 @@ export default function AdminScreen() {
   const [commandes, setCommandes] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [cmdSelectionnee, setCmdSelectionnee] = useState(null);
-  const [actionLoading, setActionLoading] = useState(false);
 
-  const fetchCommandes = async () => {
+  const fetchCommandesEnAttente = async () => {
     try {
-      const res = await fetch(ENDPOINTS.adminCommandes, {
+      // Filtre appliqué directement côté serveur : on ne récupère que les
+      // commandes en_attente, pas la totalité de la table.
+      const res = await fetch(`${ENDPOINTS.adminCommandes}?statut=en_attente`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       const data = await res.json();
@@ -139,159 +112,52 @@ export default function AdminScreen() {
     }
   };
 
-  useEffect(() => { fetchCommandes(); }, []);
-
-  const onRefresh = useCallback(() => { setRefreshing(true); fetchCommandes(); }, []);
-
-  const changerStatut = async (id, statut) => {
-    setActionLoading(true);
+  // Stats globales : une requête dédiée et légère (agrégats SQL), distincte
+  // de la liste détaillée des commandes en attente.
+  const [stats, setStats] = useState(null);
+  const fetchStats = async () => {
     try {
-      const res = await fetch(`${ENDPOINTS.adminCommandes}/${id}/statut`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ statut }),
+      const res = await fetch(ENDPOINTS.adminStats, {
+        headers: { Authorization: `Bearer ${token}` },
       });
       const data = await res.json();
-      if (data.status === 'success') {
-        setCmdSelectionnee(null);
-        fetchCommandes();
-        showAlert({
-          title: 'Statut mis à jour',
-          message: `Commande N° ${id} → ${STATUT_CFG[statut]?.label}`,
-          type: 'success',
-        });
-      } else {
-        showAlert({ title: 'Erreur', message: data.message, type: 'error' });
-      }
+      if (data.status === 'success') setStats(data.stats);
     } catch {
-      showAlert({ title: 'Erreur réseau', message: 'Impossible de modifier la commande.', type: 'error' });
-    } finally {
-      setActionLoading(false);
+      // Erreur silencieuse : les stats sont secondaires, la liste des
+      // commandes en attente reste l'information prioritaire de l'écran.
     }
   };
 
-  const appelerClient = (telephone) => {
-    Linking.openURL(`tel:${telephone}`)
-      .catch(() => showAlert({ title: 'Erreur', message: "Impossible d'ouvrir le téléphone.", type: 'error' }));
-  };
+  useEffect(() => { fetchCommandesEnAttente(); fetchStats(); }, []);
 
-  const commandesEnAttente = commandes.filter(c => c.statut === 'en_attente');
+  const onRefresh = useCallback(() => {
+    setRefreshing(true);
+    fetchCommandesEnAttente();
+    fetchStats();
+  }, []);
 
-  const handleLogout = () => {
-    showAlert({
-      title: 'Déconnexion',
-      message: 'Quitter le panneau admin ?',
-      type: 'warning',
-      confirmText: 'Déconnexion',
-      cancelText: 'Annuler',
-      onConfirm: async () => {
-        await deconnexion();
-        router.replace('/auth/login');
+  const groupes = useMemo(() => regrouperParClient(commandes), [commandes]);
+
+  const ouvrirClient = (groupe) => {
+    router.push({
+      pathname: '/admin/client/[id]',
+      params: {
+        id: String(groupe.id_user),
+        nom: groupe.nom_user,
+        prenom: groupe.prenom_user,
+        telephone: groupe.telephone_client,
+        adresse: groupe.adresse_user || '',
+        // Le dashboard ne montre que les commandes en attente : l'écran
+        // détail doit rester dans ce contexte par défaut.
+        statutFiltre: 'en_attente',
       },
     });
-  };
-
-  const stats = {
-    total:      commandes.length,
-    attente:    commandes.filter(c => c.statut === 'en_attente').length,
-    livraison:  commandes.filter(c => c.statut === 'en_livraison').length,
-    livrees:    commandes.filter(c => c.statut === 'livree').length,
-    ca:         commandes.filter(c => c.statut === 'livree').reduce((sum, c) => sum + Number(c.prix_commande || 0), 0),
   };
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       <View style={{ flex: 1, backgroundColor: COLORS.background }}>
         <StatusBar barStyle="light-content" backgroundColor={COLORS.primary} />
-
-        <Modal visible={!!cmdSelectionnee} transparent animationType="slide">
-          <View style={styles.modalOverlay}>
-            <View style={styles.modalContainer}>
-              {cmdSelectionnee && (() => {
-                const aLivraison = cmdSelectionnee.avec_livraison === 1 || cmdSelectionnee.avec_livraison === true;
-                const transitions = getTransitions(cmdSelectionnee.statut, aLivraison);
-                const cfg = STATUT_CFG[cmdSelectionnee.statut] || STATUT_CFG.en_attente;
-                return (
-                  <>
-                    <View style={styles.modalHeader}>
-                      <Text style={styles.modalTitle}>Commande N° {cmdSelectionnee.id_commande}</Text>
-                      <TouchableOpacity onPress={() => setCmdSelectionnee(null)}>
-                        <Ionicons name="close" size={24} color={COLORS.text.primary} />
-                      </TouchableOpacity>
-                    </View>
-
-                    <ScrollView style={styles.modalScroll}>
-                      <View style={styles.modalSection}>
-                        <Text style={styles.modalSectionTitle}>Client</Text>
-                        <View style={styles.modalInfoCard}>
-                          <View style={styles.modalInfoRow}>
-                            <Ionicons name="person-outline" size={18} color={COLORS.primary} />
-                            <Text style={styles.modalInfoText}>{cmdSelectionnee.nom_user} {cmdSelectionnee.prenom_user}</Text>
-                          </View>
-                          <View style={styles.modalInfoRow}>
-                            <Ionicons name="call-outline" size={18} color={COLORS.primary} />
-                            <Text style={styles.modalInfoText}>{cmdSelectionnee.telephone_client}</Text>
-                          </View>
-                          {cmdSelectionnee.adresse_user ? (
-                            <View style={styles.modalInfoRow}>
-                              <Ionicons name="location-outline" size={18} color={COLORS.primary} />
-                              <Text style={styles.modalInfoText}>{cmdSelectionnee.adresse_user}</Text>
-                            </View>
-                          ) : null}
-                        </View>
-                        <TouchableOpacity
-                          style={styles.callBtnLarge}
-                          onPress={() => appelerClient(cmdSelectionnee.telephone_client)}
-                        >
-                          <Ionicons name="call" size={20} color="#fff" />
-                          <Text style={styles.callBtnText}>Appeler le client</Text>
-                        </TouchableOpacity>
-                      </View>
-
-                      <View style={styles.modalSection}>
-                        <Text style={styles.modalSectionTitle}>Produits</Text>
-                        <View style={styles.modalInfoCard}>
-                          <Text style={styles.modalProduits}>{cmdSelectionnee.produits_detail}</Text>
-                        </View>
-                        <Text style={styles.modalTotal}>Total : {cmdSelectionnee.prix_commande} Fcfa</Text>
-                      </View>
-
-                      {transitions.length > 0 && (
-                        <View style={styles.modalSection}>
-                          <Text style={styles.modalSectionTitle}>Changer le statut</Text>
-                          {transitions.map(s => {
-                            const scfg = STATUT_CFG[s];
-                            return (
-                              <TouchableOpacity
-                                key={s}
-                                style={[styles.actionStatutBtn, { borderColor: scfg.color, backgroundColor: scfg.bg }]}
-                                onPress={() => {
-                                  showAlert({
-                                    title: `Passer en "${scfg.label}" ?`,
-                                    message: 'Cette action sera visible par le client.',
-                                    type: 'warning',
-                                    confirmText: 'Confirmer',
-                                    onConfirm: () => changerStatut(cmdSelectionnee.id_commande, s),
-                                  });
-                                }}
-                                disabled={actionLoading}
-                              >
-                                <Ionicons name={scfg.icon} size={20} color={scfg.color} />
-                                <Text style={[styles.actionStatutText, { color: scfg.color }]}>
-                                  {LABELS_ACTION[s]}
-                                </Text>
-                              </TouchableOpacity>
-                            );
-                          })}
-                        </View>
-                      )}
-                    </ScrollView>
-                  </>
-                );
-              })()}
-            </View>
-          </View>
-        </Modal>
 
         <View style={styles.header}>
           <View style={styles.headerDecor} />
@@ -304,10 +170,10 @@ export default function AdminScreen() {
 
           <View style={styles.statsRow}>
             {[
-              { label: 'Total', val: stats.total, icon: 'receipt', color: '#fff' },
-              { label: 'En attente', val: stats.attente, icon: 'time', color: COLORS.warning },
-              { label: 'Livrées', val: stats.livrees, icon: 'bag-check', color: COLORS.success },
-              { label: 'CA (Fcfa)', val: stats.ca.toLocaleString(), icon: 'wallet', color: COLORS.accent, small: true },
+              { label: 'Total', val: stats?.total_commandes ?? '-' },
+              { label: 'En attente', val: commandes.length },
+              { label: 'Livrées', val: stats ? (stats.total_commandes - stats.en_attente - stats.confirmees) : '-' },
+              { label: 'CA (Fcfa)', val: stats ? Number(stats.chiffre_affaires).toLocaleString() : '-', small: true },
             ].map((s, i) => (
               <View key={i} style={styles.statCard}>
                 <Text style={[styles.statVal, s.small && { fontSize: 14 }]}>{s.val}</Text>
@@ -318,10 +184,10 @@ export default function AdminScreen() {
         </View>
 
         <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>Commandes en attente</Text>
+          <Text style={styles.sectionTitle}>Clients avec commandes en attente</Text>
           {!loading && (
-            <View style={styles.countBadge}>
-              <Text style={styles.countBadgeText}>{commandesEnAttente.length}</Text>
+            <View style={styles.countBadgeHeader}>
+              <Text style={styles.countBadgeHeaderText}>{groupes.length}</Text>
             </View>
           )}
         </View>
@@ -329,20 +195,20 @@ export default function AdminScreen() {
         {loading ? (
           <View style={styles.center}>
             <ActivityIndicator size="large" color={COLORS.primary} />
-            <Text style={styles.loadingText}>Chargement des commandes…</Text>
+            <Text style={styles.loadingText}>Chargement des commandes</Text>
           </View>
-        ) : commandesEnAttente.length === 0 ? (
+        ) : groupes.length === 0 ? (
           <View style={styles.empty}>
-            <Ionicons name="receipt-outline" size={52} color={COLORS.text.disabled} />
+            <Ionicons name="checkmark-done-circle-outline" size={52} color={COLORS.success} />
             <Text style={styles.emptyTitle}>Aucune commande en attente</Text>
             <Text style={styles.emptySub}>Toutes les commandes ont été traitées.</Text>
           </View>
         ) : (
           <FlatList
-            data={commandesEnAttente}
-            keyExtractor={i => i.id_commande.toString()}
+            data={groupes}
+            keyExtractor={g => String(g.id_user)}
             renderItem={({ item }) => (
-              <CommandeCard item={item} onPress={(cmd) => setCmdSelectionnee(cmd)} />
+              <ClientGroupCard groupe={item} onPress={ouvrirClient} />
             )}
             contentContainerStyle={styles.list}
             showsVerticalScrollIndicator={false}
@@ -377,11 +243,6 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase', letterSpacing: 1.5, marginBottom: 3,
   },
   headerTitle: { fontSize: 26, fontWeight: '900', color: '#fff', letterSpacing: -0.5 },
-  logoutBtn: {
-    width: 40, height: 40, borderRadius: RADIUS.full,
-    backgroundColor: 'rgba(255,255,255,0.15)',
-    alignItems: 'center', justifyContent: 'center',
-  },
   statsRow: {
     flexDirection: 'row',
     paddingHorizontal: SPACING.md,
@@ -400,86 +261,55 @@ const styles = StyleSheet.create({
     flexDirection: 'row', alignItems: 'center', gap: SPACING.sm,
     paddingHorizontal: SPACING.md, paddingTop: SPACING.md, paddingBottom: SPACING.sm,
   },
-  sectionTitle: { fontSize: 16, fontWeight: '800', color: COLORS.text.primary },
-  countBadge: {
+  sectionTitle: { fontSize: 16, fontWeight: '800', color: COLORS.text.primary, flex: 1 },
+  countBadgeHeader: {
     backgroundColor: COLORS.warning + '20',
     borderRadius: RADIUS.full, paddingHorizontal: 8, paddingVertical: 2,
   },
-  countBadgeText: { fontSize: 12, fontWeight: '900', color: COLORS.warning },
+  countBadgeHeaderText: { fontSize: 12, fontWeight: '900', color: COLORS.warning },
+
+  list: { paddingHorizontal: SPACING.md, paddingBottom: 30, paddingTop: 4 },
   card: {
     backgroundColor: COLORS.surface,
     borderRadius: RADIUS.lg,
     padding: SPACING.md,
     marginBottom: SPACING.md,
-    gap: SPACING.sm,
     ...SHADOWS.light,
   },
-  cmdHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  cmdId: { fontSize: 14, fontWeight: '800', color: COLORS.text.primary },
+  cardRow: { flexDirection: 'row', alignItems: 'center', gap: SPACING.sm },
+  avatar: {
+    width: 48, height: 48, borderRadius: RADIUS.md,
+    backgroundColor: COLORS.primary + '12',
+    alignItems: 'center', justifyContent: 'center',
+  },
+  avatarText: { fontSize: 16, fontWeight: '900', color: COLORS.primary },
+  clientInfo: { flex: 1 },
+  clientName: { fontSize: 15, fontWeight: '800', color: COLORS.text.primary },
+  metaRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 2 },
+  metaText: { fontSize: 12, color: COLORS.text.secondary, flexShrink: 1 },
+  cardRight: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  countBadge: {
+    minWidth: 26, height: 26, borderRadius: 13,
+    backgroundColor: COLORS.warning, alignItems: 'center', justifyContent: 'center',
+    paddingHorizontal: 6,
+  },
+  countBadgeText: { fontSize: 12, fontWeight: '900', color: '#fff' },
+
+  cardFooter: {
+    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
+    marginTop: SPACING.sm, paddingTop: SPACING.sm,
+    borderTopWidth: 1, borderTopColor: COLORS.border,
+  },
   statutPill: {
     flexDirection: 'row', alignItems: 'center', gap: 4,
     borderRadius: RADIUS.full, paddingHorizontal: 10, paddingVertical: 4,
   },
   statutText: { fontSize: 11, fontWeight: '700' },
-  clientRow: { flexDirection: 'row', alignItems: 'center', gap: SPACING.sm },
-  clientAvatar: {
-    width: 36, height: 36, borderRadius: RADIUS.md,
-    backgroundColor: COLORS.primary + '10',
-    alignItems: 'center', justifyContent: 'center',
-  },
-  clientAvatarText: { fontSize: 12, fontWeight: '900', color: COLORS.primary },
-  clientInfo: { flex: 1 },
-  clientName: { fontSize: 14, fontWeight: '700', color: COLORS.text.primary },
-  clientPhone: { fontSize: 12, color: COLORS.text.secondary },
-  typeBadge: {
-    flexDirection: 'row', alignItems: 'center', gap: 3,
-    paddingHorizontal: 7, paddingVertical: 3, borderRadius: RADIUS.full,
-  },
-  typeBadgeText: { fontSize: 10, fontWeight: '700' },
-  cardFooter: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  dateText: { fontSize: 11, color: COLORS.text.disabled },
-  prix: { fontSize: 15, fontWeight: '900', color: COLORS.primary },
-  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
-  modalContainer: {
-    backgroundColor: COLORS.surface,
-    borderTopLeftRadius: RADIUS.xl, borderTopRightRadius: RADIUS.xl,
-    maxHeight: '80%',
-  },
-  modalHeader: {
-    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
-    padding: SPACING.md, borderBottomWidth: 1, borderBottomColor: COLORS.border,
-  },
-  modalTitle: { ...(TYPOGRAPHY?.h3 || { fontSize: 18, fontWeight: '800', color: COLORS.text.primary }) },
-  modalScroll: { padding: SPACING.md },
-  modalSection: { marginBottom: SPACING.lg },
-  modalSectionTitle: {
-    fontSize: 11, fontWeight: '800', textTransform: 'uppercase',
-    color: COLORS.text.secondary, marginBottom: SPACING.sm, letterSpacing: 1,
-  },
-  modalInfoCard: {
-    backgroundColor: COLORS.background, borderRadius: RADIUS.md,
-    padding: SPACING.md, gap: SPACING.xs,
-  },
-  modalInfoRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 8 },
-  modalInfoText: { fontSize: 14, color: COLORS.text.primary, flex: 1 },
-  callBtnLarge: {
-    backgroundColor: COLORS.success, borderRadius: RADIUS.md,
-    padding: SPACING.md, alignItems: 'center', justifyContent: 'center',
-    flexDirection: 'row', gap: 8, marginTop: SPACING.sm,
-  },
-  callBtnText: { color: '#fff', fontWeight: '700', fontSize: 15 },
-  modalProduits: { fontSize: 14, color: COLORS.text.secondary, lineHeight: 20 },
-  modalTotal: { fontSize: 15, fontWeight: '800', color: COLORS.primary, marginTop: SPACING.sm },
-  actionStatutBtn: {
-    flexDirection: 'row', alignItems: 'center', gap: 10,
-    borderWidth: 1.5, borderRadius: RADIUS.md,
-    padding: SPACING.md, marginBottom: SPACING.sm,
-  },
-  actionStatutText: { fontSize: 15, fontWeight: '700' },
+  montantText: { fontSize: 14, fontWeight: '900', color: COLORS.primary },
+
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: SPACING.sm },
   loadingText: { fontSize: 14, color: COLORS.text.secondary },
-  empty: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: SPACING.sm },
+  empty: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: SPACING.sm, paddingHorizontal: SPACING.lg },
   emptyTitle: { fontSize: 20, fontWeight: '800', color: COLORS.text.primary },
   emptySub: { fontSize: 14, color: COLORS.text.secondary, textAlign: 'center' },
-  list: { paddingHorizontal: SPACING.md, paddingBottom: 30, paddingTop: SPACING.sm },
 });

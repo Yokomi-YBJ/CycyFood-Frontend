@@ -94,7 +94,6 @@ En cas de litige relatif à l'interprétation ou à l'exécution des présentes 
     titre: '11. Contact',
     contenu: `Pour toute question relative aux présentes CGU, vous pouvez nous contacter :
 
-• Via WhatsApp : +237 691 09 40 48
 • Application : onglet Profil > Nous contacter
 
 Date de dernière mise à jour : Mars 2026
